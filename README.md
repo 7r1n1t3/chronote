@@ -20,6 +20,8 @@ The app opens on a menu of timelines:
 
 The menu can be sorted by creation date, alphabetically or in your own
 manual order.
+From the menu you can also pick a custom font (any TTF/OTF file); it applies
+after a restart, and *Reset* goes back to the bundled Inter font.
 
 > The demo shows approximate averages for education only, not medical advice.
 
@@ -44,6 +46,9 @@ Set `CHRONOTE_DATA_DIR` to use a different folder. Attachments are copied into
 `attachments/` there, so a timeline stays complete even if the originals move.
 A damaged `library.json` is renamed (not overwritten), and a fresh library is
 started.
+
+If the app ever fails to start or crashes, it shows an error dialog and writes
+the details to `crash.log` in the same folder; please include it in bug reports.
 
 ## Development
 
