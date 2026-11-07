@@ -49,10 +49,10 @@ impl Reason {
 /// Command-line options.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Options {
-    /// Open the Embryo demo directly at this week.
-    pub week: Option<u8>,
     pub software: bool,
     pub gpu: bool,
+    /// Arguments that were not recognised.
+    pub unknown: Vec<String>,
 }
 
 impl Options {
@@ -63,11 +63,7 @@ impl Options {
             match arg.as_str() {
                 "--software" => options.software = true,
                 "--gpu" => options.gpu = true,
-                other => {
-                    if let Ok(week) = other.parse() {
-                        options.week = Some(week);
-                    }
-                }
+                _ => options.unknown.push(arg),
             }
         }
         options
@@ -128,12 +124,12 @@ mod tests {
 
     #[test]
     fn parses_arguments() {
-        assert_eq!(opts(&["24"]).week, Some(24));
         assert!(opts(&["--software"]).software);
-        let both = opts(&["--gpu", "12"]);
-        assert!(both.gpu);
-        assert_eq!(both.week, Some(12));
-        assert_eq!(opts(&["nonsense"]), Options::default());
+        assert!(opts(&["--gpu"]).gpu);
+        let unknown = opts(&["24", "--gpu"]);
+        assert!(unknown.gpu);
+        assert_eq!(unknown.unknown, ["24"]);
+        assert_eq!(opts(&[]), Options::default());
     }
 
     #[test]

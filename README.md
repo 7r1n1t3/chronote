@@ -28,8 +28,8 @@ after a restart, and *Reset* goes back to the bundled Inter font.
 ## Usage
 
 ```sh
-cargo run --release          # project menu
-cargo run --release -- 24    # jump straight into the demo at week 24
+cargo run --release               # opens the menu
+cargo run --release -- --software # force CPU rendering (see below)
 ```
 
 Demo shortcuts: `←` / `→` (or scroll) to change week, `Space` to play or
@@ -55,6 +55,21 @@ Every run also writes `chronote.log` there (the previous run is kept as
 the graphics adapter and backend iced picked, window size and scale factor,
 the first rendered frame, and warnings such as failed saves or attachments.
 Set `CHRONOTE_LOG=debug` for more detail.
+
+### If the app does not open
+
+Some graphics drivers, or overlays that hook into them, hang while the GPU
+renderer starts. Chronote notices when a start never drew its first frame and
+uses the software renderer from then on, saying so on the menu. You can also
+choose yourself:
+
+```sh
+chronote --software   # always render on the CPU for this run
+chronote --gpu        # go back to the GPU after an automatic switch
+```
+
+On Windows only Direct3D 12 is used by default; set `WGPU_BACKEND` (for
+example `vulkan`) to override it. The log shows which renderer was picked.
 
 ## Development
 

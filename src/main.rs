@@ -11,11 +11,10 @@ use iced::{Size, window};
 /// How long to wait for the first frame before warning in the log.
 const FIRST_FRAME_TIMEOUT: Duration = Duration::from_secs(20);
 
-/// Usage: `chronote [WEEK] [--software | --gpu]`.
+/// Usage: `chronote [--software | --gpu]`.
 ///
-/// With WEEK (1-40) the Embryo demo opens directly on that week; otherwise
-/// the menu is shown. `--software` forces CPU rendering; `--gpu` retries
-/// the GPU after a failed start switched to software rendering.
+/// `--software` forces CPU rendering; `--gpu` retries the GPU after a
+/// failed start switched to software rendering.
 fn main() -> iced::Result {
     let options = Options::parse(std::env::args().skip(1));
     let store = Store::default_location();
@@ -39,7 +38,9 @@ fn main() -> iced::Result {
         Renderer::Software(reason) => reason.notice(),
         Renderer::Gpu => None,
     };
-    let start = options.week;
+    if !options.unknown.is_empty() {
+        log::warn!("ignoring unknown arguments: {}", options.unknown.join(" "));
+    }
 
     let custom_font = load_custom_font(store.as_ref());
 
@@ -49,13 +50,7 @@ fn main() -> iced::Result {
     }
 
     let mut app = iced::application(
-        move || {
-            let app = App::new().with_notice(notice);
-            match start {
-                Some(week) => app.with_demo(week),
-                None => app,
-            }
-        },
+        move || App::new().with_notice(notice),
         App::update,
         App::view,
     )
