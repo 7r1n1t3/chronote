@@ -1,4 +1,4 @@
-//! Startup screen: a scrollable list of projects.
+//! Startup screen: a scrollable list of study timelines.
 
 use iced::widget::{button, column, container, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Fill, Length, Theme};
@@ -35,7 +35,7 @@ impl Menu {
             ui::dot(theme::ACCENT),
             column![
                 text("Timelines").size(30).font(BOLD),
-                text("Open the Embryo demo or build your own timeline.")
+                text("Study timelines with notes. Start with the Embryo demo or build your own.")
                     .size(14)
                     .color(theme::MUTED),
             ]
@@ -192,8 +192,8 @@ fn create_entry<'a>() -> Element<'a, Message> {
                 ..container::Style::default()
             }),
         column![
-            text("New project").size(18).font(BOLD),
-            text("Start a blank timeline with your own unit of time")
+            text("New timeline").size(18).font(BOLD),
+            text("Your own study timeline: pick a unit of time, add events and notes")
                 .size(13)
                 .color(theme::MUTED),
         ]

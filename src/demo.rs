@@ -324,7 +324,7 @@ fn shortcut(key: &Key) -> Option<Message> {
 
 fn header<'a>() -> Element<'a, Message> {
     row![
-        ui::action("← Projects", Some(Message::Back), Tone::Normal),
+        ui::action("← Timelines", Some(Message::Back), Tone::Normal),
         ui::dot(theme::ACCENT),
         text("embryo").size(20).font(BOLD),
         text("A week-by-week journey through prenatal development")

@@ -44,7 +44,7 @@ impl App {
         let mut notice = None;
         let library = match store.as_ref().map(Store::load) {
             None => {
-                notice = Some("No data directory found; projects will not be saved.".to_owned());
+                notice = Some("No data directory found; timelines will not be saved.".to_owned());
                 Library::default()
             }
             Some(Ok(library)) => library,
@@ -126,7 +126,7 @@ impl App {
             menu::Message::Create => {
                 let id = self
                     .library
-                    .create_project("Untitled project", project::now());
+                    .create_project("Untitled timeline", project::now());
                 self.save();
                 self.open_project(id);
             }
@@ -167,7 +167,7 @@ impl App {
         if let Some(store) = &self.store
             && let Err(e) = store.save(&self.library)
         {
-            self.notice = Some(format!("Could not save projects: {e}"));
+            self.notice = Some(format!("Could not save timelines: {e}"));
         }
     }
 

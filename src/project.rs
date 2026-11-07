@@ -1,5 +1,5 @@
-//! User projects: timelines with a custom time unit and events, plus
-//! their on-disk storage.
+//! User-made study timelines (stored as "projects"): a custom time unit,
+//! events with study notes and attachments, plus on-disk storage.
 
 use std::fmt;
 use std::fs;
@@ -74,8 +74,8 @@ impl Library {
         self.projects.push(Project {
             id,
             name: name.into(),
-            unit: "day".to_owned(),
-            length: 30.0,
+            unit: "week".to_owned(),
+            length: 40.0,
             created,
             events: Vec::new(),
         });
@@ -339,8 +339,8 @@ pub enum StoreError {
 impl fmt::Display for StoreError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Io(e) => write!(f, "could not read projects: {e}"),
-            Self::Parse(e) => write!(f, "projects file is damaged: {e}"),
+            Self::Io(e) => write!(f, "could not read timelines: {e}"),
+            Self::Parse(e) => write!(f, "timelines file is damaged: {e}"),
         }
     }
 }

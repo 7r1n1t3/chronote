@@ -1,4 +1,4 @@
-//! Screen for editing a user project and its events.
+//! Screen for editing a study timeline and the notes on its events.
 
 use iced::widget::{
     Space, button, canvas, column, container, row, scrollable, text, text_editor, text_input,
@@ -316,9 +316,9 @@ impl Editor {
 
     pub fn view<'a>(&'a self, project: &'a Project) -> Element<'a, Message> {
         let header = row![
-            ui::action("← Projects", Some(Message::Back), Tone::Normal),
+            ui::action("← Timelines", Some(Message::Back), Tone::Normal),
             ui::dot(tint_for(project.id)),
-            text_input("Project name", &project.name)
+            text_input("Timeline name, e.g. Heart development", &project.name)
                 .on_input(Message::Rename)
                 .size(22)
                 .font(BOLD)
@@ -410,9 +410,9 @@ impl Editor {
         );
 
         let description = column![
-            label("DESCRIPTION (OPTIONAL)"),
+            label("STUDY NOTES (OPTIONAL)"),
             text_editor(&self.description)
-                .placeholder("Notes about this event…")
+                .placeholder("What happens, why it matters, mnemonics…")
                 .on_action(Message::Description)
                 .height(140)
                 .padding(10)
@@ -522,13 +522,13 @@ fn event_list(project: &Project) -> Element<'_, Message> {
 
     column![
         ui::wide_action("+ Add event", Some(Message::AddEvent), Tone::Primary),
-        label("EVENTS"),
+        label("EVENTS & NOTES"),
         scrollable(list.padding(Padding::ZERO.right(10)))
             .direction(scrollable::Direction::Vertical(
                 scrollable::Scrollbar::new().width(4).scroller_width(4),
             ))
             .height(Fill),
-        text("Click an event on the timeline or in this list to edit it.")
+        text("Click an event on the timeline or in this list to edit its notes.")
             .size(11)
             .color(theme::MUTED),
     ]
@@ -681,14 +681,14 @@ mod tests {
             ed.update(&mut lib, None, Message::AddEvent),
             Outcome::Changed
         );
-        assert_eq!(event(&lib, &ed).kind, EventKind::Instant { at: 15.0 });
+        assert_eq!(event(&lib, &ed).kind, EventKind::Instant { at: 20.0 });
 
-        ed.update(&mut lib, None, Message::Title("Kickoff".into()));
+        ed.update(&mut lib, None, Message::Title("Neural tube closes".into()));
         ed.update(&mut lib, None, Message::SetLasting(true));
         ed.update(&mut lib, None, Message::Start("2,5".into()));
         ed.update(&mut lib, None, Message::End("8".into()));
         let e = event(&lib, &ed);
-        assert_eq!(e.title, "Kickoff");
+        assert_eq!(e.title, "Neural tube closes");
         assert_eq!(
             e.kind,
             EventKind::Lasting {
@@ -709,7 +709,7 @@ mod tests {
             Outcome::None
         );
         assert_eq!(ed.length, "abc");
-        assert!((lib.projects[0].length - 30.0).abs() < f64::EPSILON);
+        assert!((lib.projects[0].length - 40.0).abs() < f64::EPSILON);
         assert_eq!(
             ed.update(&mut lib, None, Message::Length("12".into())),
             Outcome::Changed
@@ -801,6 +801,6 @@ mod tests {
             .iter()
             .map(|e| e.kind.start())
             .collect();
-        assert_eq!(starts, [15.0, 16.0]);
+        assert_eq!(starts, [20.0, 21.0]);
     }
 }
