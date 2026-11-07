@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Fails if rust-analyzer reports any diagnostic for the workspace.
+# Fails if rust-analyzer reports any diagnostic for this workspace's own files.
 set -euo pipefail
-cd "$(git rev-parse --show-toplevel)"
+root="$(git rev-parse --show-toplevel)"
+cd "$root"
 out="$(rust-analyzer diagnostics . 2>/dev/null || true)"
-if printf '%s\n' "$out" | grep -qE '^(Error|Warning|WeakWarning)'; then
-    printf '%s\n' "$out"
+hits="$(printf '%s\n' "$out" | grep -F "file $root/" | grep -E ': (Error|Warning|WeakWarning) ' || true)"
+if [[ -n "$hits" ]]; then
+    printf '%s\n' "$hits"
     exit 1
 fi
