@@ -32,10 +32,10 @@ jobs:
       - run: cargo build --release --locked
       - uses: actions/upload-artifact@v4
         with:
-          name: embryo-${{ runner.os }}
+          name: chronote-${{ runner.os }}
           path: |
-            target/release/embryo
-            target/release/embryo.exe
+            target/release/chronote
+            target/release/chronote.exe
           if-no-files-found: ignore
 
   commits:

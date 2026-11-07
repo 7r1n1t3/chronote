@@ -40,7 +40,7 @@ pub fn fade(color: Color, alpha: f32) -> Color {
 #[must_use]
 pub fn theme() -> Theme {
     Theme::custom(
-        "Embryo",
+        "Chronote",
         Palette {
             background: BACKGROUND,
             text: TEXT,

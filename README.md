@@ -1,6 +1,6 @@
-# embryo
+# Chronote
 
-Animated study timelines, built with Rust and [iced](https://iced.rs).
+Animated study timelines with notes, built with Rust and [iced](https://iced.rs).
 Runs on Linux and Windows.
 
 The app opens on a menu of timelines:
@@ -37,10 +37,10 @@ pause, `Home` / `End` to jump to the first or last week.
 
 | OS      | Location                                   |
 | ------- | ------------------------------------------ |
-| Linux   | `~/.local/share/embryo/`                   |
-| Windows | `%APPDATA%\embryo\embryo\data\`            |
+| Linux   | `~/.local/share/chronote/`                 |
+| Windows | `%APPDATA%\chronote\chronote\data\`        |
 
-Set `EMBRYO_DATA_DIR` to use a different folder. Attachments are copied into
+Set `CHRONOTE_DATA_DIR` to use a different folder. Attachments are copied into
 `attachments/` there, so a timeline stays complete even if the originals move.
 A damaged `library.json` is renamed (not overwritten), and a fresh library is
 started.

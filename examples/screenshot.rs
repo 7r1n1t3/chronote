@@ -8,10 +8,10 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use embryo::app::{App, Message};
-use embryo::editor;
-use embryo::menu;
-use embryo::project::{Entry, Event, EventKind, Library, Store};
+use chronote::app::{App, Message};
+use chronote::editor;
+use chronote::menu;
+use chronote::project::{Entry, Event, EventKind, Library, Store};
 use iced::window::{self, Screenshot};
 use iced::{Element, Size, Subscription, Task, time};
 
@@ -140,7 +140,7 @@ fn main() -> iced::Result {
         Shot::view,
     )
     .subscription(Shot::subscription)
-    .theme(embryo::theme::theme())
+    .theme(chronote::theme::theme())
     .antialiasing(false)
     .window(window::Settings {
         size: Size::new(1320.0, 840.0),

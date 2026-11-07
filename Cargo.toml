@@ -1,12 +1,12 @@
 [package]
-name = "embryo"
+name = "chronote"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.88"
-description = "An animated week-by-week timeline of human fetal development"
+description = "Animated study timelines with notes, including an embryology demo"
 license = "MIT"
 readme = "README.md"
-keywords = ["iced", "gui", "pregnancy", "timeline", "education"]
+keywords = ["iced", "gui", "timeline", "education", "medicine"]
 categories = ["gui", "science"]
 
 [dependencies]

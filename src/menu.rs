@@ -34,7 +34,7 @@ impl Menu {
         let header = row![
             ui::dot(theme::ACCENT),
             column![
-                text("Timelines").size(30).font(BOLD),
+                text("Chronote").size(30).font(BOLD),
                 text("Study timelines with notes. Start with the Embryo demo or build your own.")
                     .size(14)
                     .color(theme::MUTED),

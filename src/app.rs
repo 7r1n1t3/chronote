@@ -78,11 +78,11 @@ impl App {
     #[must_use]
     pub fn title(&self) -> String {
         match &self.screen {
-            Screen::Menu => "Timelines".to_owned(),
+            Screen::Menu => "Chronote".to_owned(),
             Screen::Demo(demo) => demo.title(),
             Screen::Editor(editor) => self.library.project(editor.project).map_or_else(
-                || "Timelines".to_owned(),
-                |p| format!("{} — Timelines", p.name),
+                || "Chronote".to_owned(),
+                |p| format!("{} — Chronote", p.name),
             ),
         }
     }

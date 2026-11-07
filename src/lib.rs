@@ -1,4 +1,5 @@
-//! Embryo: an animated week-by-week timeline of human prenatal development.
+//! Chronote: animated study timelines with notes and attachments, plus the
+//! built-in Embryo demo of human prenatal development.
 
 pub mod anim;
 pub mod app;

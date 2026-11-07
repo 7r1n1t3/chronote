@@ -354,13 +354,13 @@ pub struct Store {
 }
 
 impl Store {
-    /// The platform data directory, or `$EMBRYO_DATA_DIR` when set.
+    /// The platform data directory, or `$CHRONOTE_DATA_DIR` when set.
     #[must_use]
     pub fn default_location() -> Option<Self> {
-        if let Some(dir) = std::env::var_os("EMBRYO_DATA_DIR") {
+        if let Some(dir) = std::env::var_os("CHRONOTE_DATA_DIR") {
             return Some(Self::at(dir));
         }
-        directories::ProjectDirs::from("dev", "embryo", "embryo")
+        directories::ProjectDirs::from("dev", "chronote", "chronote")
             .map(|dirs| Self::at(dirs.data_dir()))
     }
 
