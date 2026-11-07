@@ -2,4 +2,5 @@
 
 pub mod anim;
 pub mod data;
+pub mod fetus;
 pub mod theme;

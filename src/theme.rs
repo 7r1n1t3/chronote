@@ -1,8 +1,5 @@
 //! Colors and the application theme.
 
-// Hex color codes read best as plain `0xRRGGBB`.
-#![allow(clippy::unreadable_literal)]
-
 use iced::theme::Palette;
 use iced::{Color, Theme, color};
 

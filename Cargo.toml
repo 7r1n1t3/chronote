@@ -25,6 +25,8 @@ cast_possible_truncation = "allow"
 cast_sign_loss = "allow"
 # iced's Elm-style `update`/`view` take ownership by convention.
 needless_pass_by_value = "allow"
+# Hex color codes (`0xRRGGBB`) read best without separators.
+unreadable_literal = "allow"
 
 [profile.release]
 lto = "thin"
