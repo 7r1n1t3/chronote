@@ -3,11 +3,13 @@
 use iced::widget::{
     Space, button, canvas, column, container, row, scrollable, text, text_editor, text_input,
 };
-use iced::{Alignment, Background, Border, Element, Fill, Length, Padding};
+use std::path::PathBuf;
+
+use iced::{Alignment, Background, Border, Element, Fill, Length, Padding, Subscription, window};
 
 use crate::menu::{plural, tint_for};
-use crate::project::{self, Event, EventId, EventKind, Library, Project, ProjectId};
-use crate::theme;
+use crate::project::{self, Event, EventId, EventKind, Library, Project, ProjectId, Store};
+use crate::theme::{self, fade};
 use crate::track::Track;
 use crate::ui::{self, BOLD, SEMIBOLD, Tone};
 
@@ -25,6 +27,14 @@ pub enum Message {
     End(String),
     Description(text_editor::Action),
     DeleteEvent,
+    /// Ask the parent to show a file picker for the selected event.
+    Attach,
+    /// Files chosen for an event (from the picker).
+    Attached(EventId, Vec<PathBuf>),
+    /// A file dropped onto the window; goes to the selected event.
+    Dropped(PathBuf),
+    OpenAttachment(usize),
+    RemoveAttachment(usize),
 }
 
 /// What the parent should do after an update.
@@ -34,6 +44,8 @@ pub enum Outcome {
     /// The library changed and should be saved.
     Changed,
     Back,
+    /// Show a file picker; send the result back as `Message::Attached`.
+    PickFiles(EventId),
 }
 
 /// Editing state for one project. Numeric fields keep the raw text so
@@ -46,6 +58,8 @@ pub struct Editor {
     start: String,
     end: String,
     description: text_editor::Content,
+    /// Last attachment problem, shown in the side panel.
+    error: Option<String>,
 }
 
 impl Editor {
@@ -58,6 +72,7 @@ impl Editor {
             start: String::new(),
             end: String::new(),
             description: text_editor::Content::new(),
+            error: None,
         }
     }
 
@@ -68,6 +83,7 @@ impl Editor {
 
     fn select(&mut self, event: Option<&Event>) {
         self.selected = event.map(|e| e.id);
+        self.error = None;
         if let Some(e) = event {
             self.start = project::format_units(e.kind.start());
             self.end = project::format_units(e.kind.end());
@@ -75,7 +91,20 @@ impl Editor {
         }
     }
 
-    pub fn update(&mut self, library: &mut Library, message: Message) -> Outcome {
+    /// Files dropped onto the window while the editor is open.
+    pub fn subscription() -> Subscription<Message> {
+        iced::event::listen_with(|event, _status, _window| match event {
+            iced::Event::Window(window::Event::FileDropped(path)) => Some(Message::Dropped(path)),
+            _ => None,
+        })
+    }
+
+    pub fn update(
+        &mut self,
+        library: &mut Library,
+        store: Option<&Store>,
+        message: Message,
+    ) -> Outcome {
         if let Message::Back = message {
             return Outcome::Back;
         }
@@ -126,7 +155,77 @@ impl Editor {
                 self.select(event);
                 Outcome::None
             }
+            message @ (Message::Attach
+            | Message::Attached(..)
+            | Message::Dropped(_)
+            | Message::OpenAttachment(_)
+            | Message::RemoveAttachment(_)
+            | Message::DeleteEvent) => self.update_files(project, store, message),
             message => self.update_event(project, message),
+        }
+    }
+
+    /// Attachment handling and event deletion (which removes files too).
+    fn update_files(
+        &mut self,
+        project: &mut Project,
+        store: Option<&Store>,
+        message: Message,
+    ) -> Outcome {
+        match message {
+            Message::Attach => match self.selected {
+                Some(id) => Outcome::PickFiles(id),
+                None => Outcome::None,
+            },
+            Message::Attached(id, paths) => self.attach(project, store, id, &paths),
+            Message::Dropped(path) => {
+                if let Some(id) = self.selected {
+                    self.attach(project, store, id, &[path])
+                } else {
+                    self.error = Some("Select an event before dropping files.".to_owned());
+                    Outcome::None
+                }
+            }
+            Message::OpenAttachment(index) => {
+                let file = self
+                    .selected
+                    .and_then(|id| project.event(id))
+                    .and_then(|e| e.attachments.get(index));
+                if let (Some(file), Some(store)) = (file, store)
+                    && let Err(e) = opener::open(store.attachment_path(file))
+                {
+                    self.error = Some(format!("Could not open {}: {e}", file.name));
+                }
+                Outcome::None
+            }
+            Message::RemoveAttachment(index) => {
+                let Some(event) = self.selected.and_then(|id| project.event_mut(id)) else {
+                    return Outcome::None;
+                };
+                if index >= event.attachments.len() {
+                    return Outcome::None;
+                }
+                let file = event.attachments.remove(index);
+                if let Some(store) = store
+                    && let Err(e) = store.remove_attachment(&file)
+                {
+                    self.error = Some(format!("Could not delete {}: {e}", file.name));
+                }
+                Outcome::Changed
+            }
+            Message::DeleteEvent => {
+                let Some(id) = self.selected.take() else {
+                    return Outcome::None;
+                };
+                project.remove_event(id);
+                if let Some(store) = store
+                    && let Err(e) = store.remove_event_files(project.id, id)
+                {
+                    self.error = Some(format!("Could not delete attachments: {e}"));
+                }
+                Outcome::Changed
+            }
+            _ => Outcome::None,
         }
     }
 
@@ -172,14 +271,47 @@ impl Editor {
                 }
                 event.description = self.description.text();
             }
-            Message::DeleteEvent => {
-                let id = event.id;
-                project.remove_event(id);
-                self.selected = None;
-            }
             _ => return Outcome::None,
         }
         Outcome::Changed
+    }
+
+    /// Copies files into the store and links them to event `id`.
+    fn attach(
+        &mut self,
+        project: &mut Project,
+        store: Option<&Store>,
+        id: EventId,
+        paths: &[PathBuf],
+    ) -> Outcome {
+        let Some(store) = store else {
+            self.error = Some("Attachments need a data directory.".to_owned());
+            return Outcome::None;
+        };
+        let project_id = project.id;
+        let Some(event) = project.event_mut(id) else {
+            return Outcome::None;
+        };
+        let mut failures = Vec::new();
+        let before = event.attachments.len();
+        for path in paths {
+            match store.import_attachment(project_id, id, path) {
+                Ok(file) => event.attachments.push(file),
+                Err(e) => failures.push(format!(
+                    "{}: {e}",
+                    path.file_name().map_or_else(
+                        || path.display().to_string(),
+                        |n| n.to_string_lossy().into_owned()
+                    )
+                )),
+            }
+        }
+        self.error = (!failures.is_empty()).then(|| failures.join("\n"));
+        if event.attachments.len() > before {
+            Outcome::Changed
+        } else {
+            Outcome::None
+        }
     }
 
     pub fn view<'a>(&'a self, project: &'a Project) -> Element<'a, Message> {
@@ -306,6 +438,7 @@ impl Editor {
             kind,
             timing,
             description,
+            attachments(event, self.error.as_deref()),
         ]
         .spacing(16);
 
@@ -403,6 +536,60 @@ fn event_list(project: &Project) -> Element<'_, Message> {
     .into()
 }
 
+fn attachments<'a>(event: &'a Event, error: Option<&'a str>) -> Element<'a, Message> {
+    let mut list = column![label("ATTACHMENTS")].spacing(8);
+    for (index, file) in event.attachments.iter().enumerate() {
+        let kind = std::path::Path::new(&file.name)
+            .extension()
+            .map(|e| e.to_string_lossy().to_uppercase())
+            .unwrap_or_default();
+        let tint = if kind == "PDF" {
+            theme::DANGER
+        } else {
+            theme::FIRST
+        };
+        list = list.push(
+            container(
+                row![
+                    ui::chip(kind, tint),
+                    text(file.name.as_str()).size(13).width(Fill),
+                    button(text("Open").size(12).font(SEMIBOLD))
+                        .padding([4, 10])
+                        .on_press(Message::OpenAttachment(index))
+                        .style(ui::button_style(Tone::Normal)),
+                    button(text("✕").size(12))
+                        .padding([4, 8])
+                        .on_press(Message::RemoveAttachment(index))
+                        .style(ui::button_style(Tone::Danger)),
+                ]
+                .spacing(8)
+                .align_y(Alignment::Center),
+            )
+            .padding([8, 10])
+            .style(|_| container::Style {
+                background: Some(Background::Color(theme::SURFACE_RAISED)),
+                border: Border::default().rounded(10),
+                ..container::Style::default()
+            }),
+        );
+    }
+    list = list
+        .push(ui::action(
+            "Attach PDF / DOCX…",
+            Some(Message::Attach),
+            Tone::Normal,
+        ))
+        .push(
+            text("…or drop files onto the window.")
+                .size(11)
+                .color(theme::MUTED),
+        );
+    if let Some(error) = error {
+        list = list.push(text(error).size(12).color(fade(theme::DANGER, 0.9)));
+    }
+    list.into()
+}
+
 fn label(content: &str) -> Element<'_, Message> {
     text(content)
         .size(11)
@@ -490,13 +677,16 @@ mod tests {
     #[test]
     fn add_and_edit_event() {
         let (mut lib, mut ed) = setup();
-        assert_eq!(ed.update(&mut lib, Message::AddEvent), Outcome::Changed);
+        assert_eq!(
+            ed.update(&mut lib, None, Message::AddEvent),
+            Outcome::Changed
+        );
         assert_eq!(event(&lib, &ed).kind, EventKind::Instant { at: 15.0 });
 
-        ed.update(&mut lib, Message::Title("Kickoff".into()));
-        ed.update(&mut lib, Message::SetLasting(true));
-        ed.update(&mut lib, Message::Start("2,5".into()));
-        ed.update(&mut lib, Message::End("8".into()));
+        ed.update(&mut lib, None, Message::Title("Kickoff".into()));
+        ed.update(&mut lib, None, Message::SetLasting(true));
+        ed.update(&mut lib, None, Message::Start("2,5".into()));
+        ed.update(&mut lib, None, Message::End("8".into()));
         let e = event(&lib, &ed);
         assert_eq!(e.title, "Kickoff");
         assert_eq!(
@@ -507,7 +697,7 @@ mod tests {
             }
         );
 
-        ed.update(&mut lib, Message::SetLasting(false));
+        ed.update(&mut lib, None, Message::SetLasting(false));
         assert_eq!(event(&lib, &ed).kind, EventKind::Instant { at: 2.5 });
     }
 
@@ -515,18 +705,18 @@ mod tests {
     fn invalid_numbers_are_kept_as_drafts() {
         let (mut lib, mut ed) = setup();
         assert_eq!(
-            ed.update(&mut lib, Message::Length("abc".into())),
+            ed.update(&mut lib, None, Message::Length("abc".into())),
             Outcome::None
         );
         assert_eq!(ed.length, "abc");
         assert!((lib.projects[0].length - 30.0).abs() < f64::EPSILON);
         assert_eq!(
-            ed.update(&mut lib, Message::Length("12".into())),
+            ed.update(&mut lib, None, Message::Length("12".into())),
             Outcome::Changed
         );
         assert!((lib.projects[0].length - 12.0).abs() < f64::EPSILON);
         assert_eq!(
-            ed.update(&mut lib, Message::Length("0".into())),
+            ed.update(&mut lib, None, Message::Length("0".into())),
             Outcome::None
         );
     }
@@ -534,9 +724,10 @@ mod tests {
     #[test]
     fn description_edits_are_stored() {
         let (mut lib, mut ed) = setup();
-        ed.update(&mut lib, Message::AddEvent);
+        ed.update(&mut lib, None, Message::AddEvent);
         let outcome = ed.update(
             &mut lib,
+            None,
             Message::Description(text_editor::Action::Edit(text_editor::Edit::Insert('x'))),
         );
         assert_eq!(outcome, Outcome::Changed);
@@ -546,17 +737,59 @@ mod tests {
     #[test]
     fn delete_clears_selection() {
         let (mut lib, mut ed) = setup();
-        ed.update(&mut lib, Message::AddEvent);
-        ed.update(&mut lib, Message::DeleteEvent);
+        ed.update(&mut lib, None, Message::AddEvent);
+        ed.update(&mut lib, None, Message::DeleteEvent);
         assert!(ed.selected().is_none());
         assert_eq!(lib.projects[0].events.len(), 0);
     }
 
     #[test]
+    fn attachments_are_imported_filtered_and_removed() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at(dir.path().join("data"));
+        let pdf = dir.path().join("plan.pdf");
+        let txt = dir.path().join("plan.txt");
+        std::fs::write(&pdf, b"%PDF").unwrap();
+        std::fs::write(&txt, b"text").unwrap();
+
+        let (mut lib, mut ed) = setup();
+        assert_eq!(ed.update(&mut lib, None, Message::Attach), Outcome::None);
+        ed.update(&mut lib, None, Message::AddEvent);
+        let id = ed.selected().unwrap();
+        assert_eq!(
+            ed.update(&mut lib, None, Message::Attach),
+            Outcome::PickFiles(id)
+        );
+
+        let outcome = ed.update(
+            &mut lib,
+            Some(&store),
+            Message::Attached(id, vec![pdf, txt]),
+        );
+        assert_eq!(outcome, Outcome::Changed);
+        assert_eq!(event(&lib, &ed).attachments.len(), 1);
+        assert!(ed.error.as_deref().unwrap_or("").contains("plan.txt"));
+        let stored = store.attachment_path(&event(&lib, &ed).attachments[0]);
+        assert!(stored.exists());
+
+        ed.update(&mut lib, Some(&store), Message::RemoveAttachment(0));
+        assert_eq!(event(&lib, &ed).attachments.len(), 0);
+        assert!(!stored.exists());
+    }
+
+    #[test]
+    fn dropping_without_selection_reports_error() {
+        let (mut lib, mut ed) = setup();
+        let outcome = ed.update(&mut lib, None, Message::Dropped("x.pdf".into()));
+        assert_eq!(outcome, Outcome::None);
+        assert!(ed.error.is_some());
+    }
+
+    #[test]
     fn new_events_are_spread_out() {
         let (mut lib, mut ed) = setup();
-        ed.update(&mut lib, Message::AddEvent);
-        ed.update(&mut lib, Message::AddEvent);
+        ed.update(&mut lib, None, Message::AddEvent);
+        ed.update(&mut lib, None, Message::AddEvent);
         let starts: Vec<f64> = lib.projects[0]
             .events
             .iter()

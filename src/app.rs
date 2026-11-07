@@ -98,10 +98,15 @@ impl App {
             }
             Message::Editor(message) => {
                 if let Screen::Editor(editor) = &mut self.screen {
-                    match editor.update(&mut self.library, message) {
+                    match editor.update(&mut self.library, self.store.as_ref(), message) {
                         Outcome::None => {}
                         Outcome::Changed => self.save(),
                         Outcome::Back => self.screen = Screen::Menu,
+                        Outcome::PickFiles(event) => {
+                            return Task::perform(pick_attachments(), move |paths| {
+                                Message::Editor(editor::Message::Attached(event, paths))
+                            });
+                        }
                     }
                 }
             }
@@ -169,7 +174,8 @@ impl App {
     pub fn subscription(&self) -> Subscription<Message> {
         match &self.screen {
             Screen::Demo(demo) => demo.subscription().map(Message::Demo),
-            Screen::Menu | Screen::Editor(_) => Subscription::none(),
+            Screen::Editor(_) => Editor::subscription().map(Message::Editor),
+            Screen::Menu => Subscription::none(),
         }
     }
 
@@ -194,6 +200,17 @@ impl App {
     fn library(&self) -> &Library {
         &self.library
     }
+}
+
+/// Shows the native file picker, limited to supported attachment types.
+async fn pick_attachments() -> Vec<std::path::PathBuf> {
+    rfd::AsyncFileDialog::new()
+        .set_title("Attach files")
+        .add_filter("Documents (PDF, DOCX)", &project::ATTACHMENT_EXTENSIONS)
+        .pick_files()
+        .await
+        .map(|files| files.iter().map(|f| f.path().to_path_buf()).collect())
+        .unwrap_or_default()
 }
 
 impl Default for App {
