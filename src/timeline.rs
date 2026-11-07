@@ -162,7 +162,7 @@ impl<Message> canvas::Program<Message> for Timeline<Message> {
                 size: Pixels(11.0),
                 font: Font {
                     weight: font::Weight::Semibold,
-                    ..Font::DEFAULT
+                    ..crate::ui::regular()
                 },
                 align_x: Alignment::Center,
                 align_y: Vertical::Center,
@@ -196,6 +196,7 @@ impl<Message> canvas::Program<Message> for Timeline<Message> {
                     size: Pixels(12.0),
                     align_x: Alignment::Center,
                     align_y: Vertical::Center,
+                    font: crate::ui::regular(),
                     ..Text::default()
                 });
             }
@@ -220,7 +221,7 @@ impl<Message> canvas::Program<Message> for Timeline<Message> {
             size: Pixels(10.0),
             font: Font {
                 weight: font::Weight::Bold,
-                ..Font::DEFAULT
+                ..crate::ui::regular()
             },
             align_x: Alignment::Center,
             align_y: Vertical::Center,

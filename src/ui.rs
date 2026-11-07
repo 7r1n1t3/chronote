@@ -1,5 +1,7 @@
 //! Shared widgets and styles used by every screen.
 
+use std::sync::OnceLock;
+
 use iced::widget::{Space, button, container, text, text_editor, text_input};
 use iced::{
     Alignment, Background, Border, Color, Element, Fill, Font, Shadow, Theme, Vector, font,
@@ -7,15 +9,46 @@ use iced::{
 
 use crate::theme::{self, fade};
 
-pub const BOLD: Font = Font {
-    weight: font::Weight::Bold,
-    ..Font::DEFAULT
-};
+/// Family of the bundled font (SIL Open Font License, see `assets/fonts/OFL.txt`).
+pub const DEFAULT_FAMILY: &str = "Inter";
 
-pub const SEMIBOLD: Font = Font {
-    weight: font::Weight::Semibold,
-    ..Font::DEFAULT
-};
+/// Bundled font files, registered with the renderer at startup so text
+/// renders even on systems without suitable fonts.
+pub const BUNDLED_FONTS: [&[u8]; 3] = [
+    include_bytes!("../assets/fonts/Inter-Regular.ttf"),
+    include_bytes!("../assets/fonts/Inter-SemiBold.ttf"),
+    include_bytes!("../assets/fonts/Inter-Bold.ttf"),
+];
+
+static FAMILY: OnceLock<&'static str> = OnceLock::new();
+
+/// Chooses the font family for the whole app. Only the first call counts,
+/// so it must happen before the UI starts.
+pub fn set_family(family: &'static str) {
+    let _ = FAMILY.set(family);
+}
+
+pub fn family() -> &'static str {
+    FAMILY.get().copied().unwrap_or(DEFAULT_FAMILY)
+}
+
+pub fn regular() -> Font {
+    Font::with_name(family())
+}
+
+pub fn semibold() -> Font {
+    Font {
+        weight: font::Weight::Semibold,
+        ..regular()
+    }
+}
+
+pub fn bold() -> Font {
+    Font {
+        weight: font::Weight::Bold,
+        ..regular()
+    }
+}
 
 /// Rounded surface used for panels and list entries.
 pub fn card_style(radius: f32) -> impl Fn(&Theme) -> container::Style {
@@ -45,7 +78,7 @@ pub fn chip<'a, Message: 'a>(
     label: impl text::IntoFragment<'a>,
     tint: Color,
 ) -> Element<'a, Message> {
-    container(text(label).size(12).font(SEMIBOLD).color(tint))
+    container(text(label).size(12).font(semibold()).color(tint))
         .padding([4, 12])
         .style(move |_| container::Style {
             background: Some(Background::Color(fade(tint, 0.14))),
@@ -135,7 +168,7 @@ pub fn action<'a, Message: Clone + 'a>(
     message: Option<Message>,
     tone: Tone,
 ) -> Element<'a, Message> {
-    button(text(label).size(14).font(SEMIBOLD))
+    button(text(label).size(14).font(semibold()))
         .padding([10, 14])
         .on_press_maybe(message)
         .style(button_style(tone))
@@ -151,7 +184,7 @@ pub fn wide_action<'a, Message: Clone + 'a>(
     button(
         text(label)
             .size(14)
-            .font(SEMIBOLD)
+            .font(semibold())
             .align_x(Alignment::Center)
             .width(Fill),
     )

@@ -14,7 +14,7 @@ use crate::data::{self, WEEKS, Week};
 use crate::fetus::{Fetus, heart_rate};
 use crate::theme::{self, fade};
 use crate::timeline::Timeline;
-use crate::ui::{self, BOLD, SEMIBOLD, Tone, card, card_style, chip};
+use crate::ui::{self, Tone, card, card_style, chip};
 
 /// How long the illustration takes to morph between weeks.
 const TRANSITION: Duration = Duration::from_millis(900);
@@ -186,9 +186,12 @@ impl Demo {
         let heading = column![
             text(format!("Week {}", week.number))
                 .size(42)
-                .font(BOLD)
+                .font(ui::bold())
                 .color(ink(theme::TEXT)),
-            text(week.title).size(22).font(SEMIBOLD).color(ink(tint)),
+            text(week.title)
+                .size(22)
+                .font(ui::semibold())
+                .color(ink(tint)),
         ]
         .spacing(2);
 
@@ -230,7 +233,7 @@ impl Demo {
             column![
                 text("KEY DEVELOPMENTS")
                     .size(11)
-                    .font(SEMIBOLD)
+                    .font(ui::semibold())
                     .color(theme::MUTED),
                 milestones,
             ]
@@ -326,7 +329,7 @@ fn header<'a>() -> Element<'a, Message> {
     row![
         ui::action("← Timelines", Some(Message::Back), Tone::Normal),
         ui::dot(theme::ACCENT),
-        text("embryo").size(20).font(BOLD),
+        text("embryo").size(20).font(ui::bold()),
         text("A week-by-week journey through prenatal development")
             .size(14)
             .color(theme::MUTED),
@@ -368,8 +371,14 @@ fn stat<'a>(
 ) -> Element<'a, Message> {
     container(
         column![
-            text(label).size(10).font(SEMIBOLD).color(theme::MUTED),
-            text(value).size(18).font(BOLD).color(ink(theme::TEXT)),
+            text(label)
+                .size(10)
+                .font(ui::semibold())
+                .color(theme::MUTED),
+            text(value)
+                .size(18)
+                .font(ui::bold())
+                .color(ink(theme::TEXT)),
             text(note).size(10).color(theme::MUTED),
         ]
         .spacing(4),

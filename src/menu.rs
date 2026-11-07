@@ -5,7 +5,7 @@ use iced::{Alignment, Background, Border, Color, Element, Fill, Length, Theme};
 
 use crate::project::{self, Entry, Library, ProjectId, SortMode};
 use crate::theme::{self, fade};
-use crate::ui::{self, BOLD, SEMIBOLD, Tone};
+use crate::ui::{self, Tone};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -34,7 +34,7 @@ impl Menu {
         let header = row![
             ui::dot(theme::ACCENT),
             column![
-                text("Chronote").size(30).font(BOLD),
+                text("Chronote").size(30).font(ui::bold()),
                 text("Study timelines with notes. Start with the Embryo demo or build your own.")
                     .size(14)
                     .color(theme::MUTED),
@@ -45,7 +45,10 @@ impl Menu {
         .align_y(Alignment::Center);
 
         let sort = row![
-            text("SORT BY").size(11).font(SEMIBOLD).color(theme::MUTED),
+            text("SORT BY")
+                .size(11)
+                .font(ui::semibold())
+                .color(theme::MUTED),
             sort_button("Created", SortMode::Created, library.sort),
             sort_button("A–Z", SortMode::Alphabetical, library.sort),
             sort_button("Manual", SortMode::Manual, library.sort),
@@ -126,7 +129,9 @@ impl Menu {
         let body = row![
             ui::dot(tint),
             column![
-                text(library.name(entry).to_owned()).size(18).font(BOLD),
+                text(library.name(entry).to_owned())
+                    .size(18)
+                    .font(ui::bold()),
                 text(subtitle).size(13).color(theme::MUTED),
             ]
             .spacing(4),
@@ -181,7 +186,7 @@ impl Menu {
 /// "New project" entry, styled like the project entries.
 fn create_entry<'a>() -> Element<'a, Message> {
     let body = row![
-        container(text("+").size(18).font(BOLD).color(theme::ACCENT))
+        container(text("+").size(18).font(ui::bold()).color(theme::ACCENT))
             .center_x(28)
             .center_y(28)
             .style(|_| container::Style {
@@ -192,7 +197,7 @@ fn create_entry<'a>() -> Element<'a, Message> {
                 ..container::Style::default()
             }),
         column![
-            text("New timeline").size(18).font(BOLD),
+            text("New timeline").size(18).font(ui::bold()),
             text("Your own study timeline: pick a unit of time, add events and notes")
                 .size(13)
                 .color(theme::MUTED),
@@ -235,7 +240,7 @@ fn entry_style(_: &Theme, status: button::Status) -> button::Style {
 }
 
 fn sort_button(label: &str, mode: SortMode, current: SortMode) -> Element<'_, Message> {
-    button(text(label).size(13).font(SEMIBOLD))
+    button(text(label).size(13).font(ui::semibold()))
         .padding([6, 14])
         .on_press(Message::Sort(mode))
         .style(ui::button_style(if mode == current {

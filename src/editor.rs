@@ -11,7 +11,7 @@ use crate::menu::{plural, tint_for};
 use crate::project::{self, Event, EventId, EventKind, Library, Project, ProjectId, Store};
 use crate::theme::{self, fade};
 use crate::track::Track;
-use crate::ui::{self, BOLD, SEMIBOLD, Tone};
+use crate::ui::{self, Tone};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -321,7 +321,7 @@ impl Editor {
             text_input("Timeline name, e.g. Heart development", &project.name)
                 .on_input(Message::Rename)
                 .size(22)
-                .font(BOLD)
+                .font(ui::bold())
                 .padding([6, 10])
                 .style(ui::input_style)
                 .width(Fill),
@@ -413,6 +413,7 @@ impl Editor {
             label("STUDY NOTES (OPTIONAL)"),
             text_editor(&self.description)
                 .placeholder("What happens, why it matters, mnemonics…")
+                .font(ui::regular())
                 .on_action(Message::Description)
                 .height(140)
                 .padding(10)
@@ -424,7 +425,7 @@ impl Editor {
             row![
                 label("EVENT"),
                 Space::new().width(Fill),
-                button(text("Done").size(12).font(SEMIBOLD))
+                button(text("Done").size(12).font(ui::semibold()))
                     .padding([4, 10])
                     .on_press(Message::Select(None))
                     .style(ui::button_style(Tone::Normal)),
@@ -505,7 +506,7 @@ fn event_list(project: &Project) -> Element<'_, Message> {
                 row![
                     marker,
                     column![
-                        text(event.title.as_str()).size(15).font(SEMIBOLD),
+                        text(event.title.as_str()).size(15).font(ui::semibold()),
                         text(format!("{when}{clips}")).size(12).color(theme::MUTED),
                     ]
                     .spacing(2),
@@ -553,7 +554,7 @@ fn attachments<'a>(event: &'a Event, error: Option<&'a str>) -> Element<'a, Mess
                 row![
                     ui::chip(kind, tint),
                     text(file.name.as_str()).size(13).width(Fill),
-                    button(text("Open").size(12).font(SEMIBOLD))
+                    button(text("Open").size(12).font(ui::semibold()))
                         .padding([4, 10])
                         .on_press(Message::OpenAttachment(index))
                         .style(ui::button_style(Tone::Normal)),
@@ -593,7 +594,7 @@ fn attachments<'a>(event: &'a Event, error: Option<&'a str>) -> Element<'a, Mess
 fn label(content: &str) -> Element<'_, Message> {
     text(content)
         .size(11)
-        .font(SEMIBOLD)
+        .font(ui::semibold())
         .color(theme::MUTED)
         .into()
 }
@@ -616,7 +617,7 @@ fn toggle(name: &str, active: bool, message: Message) -> Element<'_, Message> {
     button(
         text(name)
             .size(13)
-            .font(SEMIBOLD)
+            .font(ui::semibold())
             .align_x(Alignment::Center)
             .width(Fill),
     )

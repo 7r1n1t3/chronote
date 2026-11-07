@@ -11,7 +11,7 @@ fn main() -> iced::Result {
         .nth(1)
         .and_then(|arg| arg.parse::<u8>().ok());
 
-    iced::application(
+    let mut app = iced::application(
         move || match start {
             Some(week) => App::new().with_demo(week),
             None => App::new(),
@@ -22,6 +22,7 @@ fn main() -> iced::Result {
     .title(App::title)
     .subscription(App::subscription)
     .theme(chronote::theme::theme())
+    .default_font(chronote::ui::regular())
     // MSAA makes iced 0.14's wgpu renderer drop canvas meshes on some
     // drivers, so it stays off.
     .antialiasing(false)
@@ -29,6 +30,9 @@ fn main() -> iced::Result {
         size: Size::new(1320.0, 840.0),
         min_size: Some(Size::new(1000.0, 680.0)),
         ..window::Settings::default()
-    })
-    .run()
+    });
+    for font in chronote::ui::BUNDLED_FONTS {
+        app = app.font(font);
+    }
+    app.run()
 }

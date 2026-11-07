@@ -111,7 +111,7 @@ fn main() -> iced::Result {
         .and_then(|a| a.parse().ok())
         .map_or(Duration::from_secs(2), Duration::from_secs_f32);
 
-    iced::application(
+    let mut app = iced::application(
         move || {
             let mut data = None;
             let app = if let Ok(week) = screen.parse::<u8>() {
@@ -141,10 +141,14 @@ fn main() -> iced::Result {
     )
     .subscription(Shot::subscription)
     .theme(chronote::theme::theme())
+    .default_font(chronote::ui::regular())
     .antialiasing(false)
     .window(window::Settings {
         size: Size::new(1320.0, 840.0),
         ..window::Settings::default()
-    })
-    .run()
+    });
+    for font in chronote::ui::BUNDLED_FONTS {
+        app = app.font(font);
+    }
+    app.run()
 }

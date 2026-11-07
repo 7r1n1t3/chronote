@@ -148,6 +148,7 @@ impl<Message> canvas::Program<Message> for Track<'_, Message> {
                 size: Pixels(14.0),
                 align_x: Alignment::Center,
                 align_y: Vertical::Center,
+                font: crate::ui::regular(),
                 ..Text::default()
             });
         }
@@ -192,6 +193,7 @@ impl<Message> Track<'_, Message> {
                 size: Pixels(11.0),
                 align_x: Alignment::Center,
                 align_y: Vertical::Center,
+                font: crate::ui::regular(),
                 ..Text::default()
             });
             t += step;
@@ -213,6 +215,7 @@ impl<Message> Track<'_, Message> {
             size: Pixels(10.0),
             align_x: Alignment::Right,
             align_y: Vertical::Center,
+            font: crate::ui::regular(),
             ..Text::default()
         });
     }
@@ -290,6 +293,7 @@ fn draw_event(frame: &mut Frame, e: &Placed<'_>, active: bool, hovered: bool) {
         },
         size: Pixels(12.0),
         align_y,
+        font: crate::ui::regular(),
         ..Text::default()
     });
 }
