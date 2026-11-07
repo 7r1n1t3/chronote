@@ -337,7 +337,7 @@ impl Body {
 
     fn width(&self, t: f32) -> f32 {
         if t <= 1.0 {
-            self.thickness * (0.55 + 0.45 * (PI * t).sin().powf(0.7))
+            self.thickness * (0.55 + 0.45 * (PI * t).sin().max(0.0).powf(0.7))
         } else {
             let tail_t = self.tail / self.span;
             self.thickness * 0.55 * (1.0 - (t - 1.0) / tail_t).max(0.0)
@@ -732,6 +732,33 @@ mod tests {
         assert!(heart_rate(6.0) < heart_rate(9.0));
         assert!(heart_rate(40.0) < heart_rate(9.0));
         assert!((heart_rate(9.0) - 170.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn body_geometry_is_finite_every_week() {
+        // Regression: sin(PI) is slightly negative and powf() turned it into NaN.
+        for tenth in 46..=400 {
+            let scene = Scene {
+                center: Point::new(400.0, 300.0),
+                sac: 250.0,
+                week: tenth as f32 / 10.0,
+                time: tenth as f32,
+            };
+            let body = Body::new(&scene, 1.0);
+            let end = 1.0 + body.tail / body.span;
+            for i in 0..=100 {
+                let t = end * i as f32 / 100.0;
+                let p = body.spine(t);
+                assert!(
+                    body.width(t).is_finite(),
+                    "width at week {} t {t}",
+                    scene.week
+                );
+                assert!(p.x.is_finite() && p.y.is_finite());
+            }
+            let head = body.head_center();
+            assert!(head.x.is_finite() && head.y.is_finite());
+        }
     }
 
     #[test]
