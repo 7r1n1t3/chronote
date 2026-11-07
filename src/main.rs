@@ -8,6 +8,8 @@ use iced::{Size, window};
 /// Usage: `embryo [WEEK]`. With WEEK (1-40) the Embryo demo opens directly
 /// on that week; otherwise the project menu is shown.
 fn main() -> iced::Result {
+    chronote::crash::install();
+
     let start = std::env::args()
         .nth(1)
         .and_then(|arg| arg.parse::<u8>().ok());
@@ -48,5 +50,9 @@ fn main() -> iced::Result {
     if let Some((_, bytes)) = custom_font {
         app = app.font(bytes);
     }
-    app.run()
+    let result = app.run();
+    if let Err(error) = &result {
+        chronote::crash::report("Chronote could not start", &error.to_string());
+    }
+    result
 }

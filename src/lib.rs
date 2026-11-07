@@ -3,6 +3,7 @@
 
 pub mod anim;
 pub mod app;
+pub mod crash;
 pub mod data;
 pub mod demo;
 pub mod editor;
