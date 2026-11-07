@@ -12,6 +12,7 @@ pub const BORDER: Color = color!(0x2a3358);
 pub const TEXT: Color = color!(0xe8ecf8);
 pub const MUTED: Color = color!(0x8a93b2);
 pub const ACCENT: Color = color!(0xff7a9c);
+pub const DANGER: Color = color!(0xf56565);
 
 pub const FIRST: Color = color!(0x4fd1c5);
 pub const SECOND: Color = color!(0x9f7aea);
@@ -46,7 +47,7 @@ pub fn theme() -> Theme {
             primary: ACCENT,
             success: FIRST,
             warning: THIRD,
-            danger: color!(0xf56565),
+            danger: DANGER,
         },
     )
 }

@@ -1,12 +1,12 @@
-//! Application state, update logic and layout.
+//! The built-in Embryo demo: an animated week-by-week timeline of
+//! human prenatal development.
 
 use std::time::{Duration, Instant};
 
 use iced::keyboard::{self, Key, key::Named};
-use iced::widget::{Space, button, canvas, column, container, row, scrollable, text};
+use iced::widget::{Space, canvas, column, container, row, scrollable, text};
 use iced::{
-    Alignment, Background, Border, Color, Element, Fill, Font, Length, Padding, Shadow,
-    Subscription, Vector, font, time,
+    Alignment, Background, Border, Color, Element, Fill, Length, Padding, Subscription, time,
 };
 
 use crate::anim::{Tween, ease_out_cubic};
@@ -14,6 +14,7 @@ use crate::data::{self, WEEKS, Week};
 use crate::fetus::{Fetus, heart_rate};
 use crate::theme::{self, fade};
 use crate::timeline::Timeline;
+use crate::ui::{self, BOLD, SEMIBOLD, Tone, card, card_style, chip};
 
 /// How long the illustration takes to morph between weeks.
 const TRANSITION: Duration = Duration::from_millis(900);
@@ -21,15 +22,6 @@ const TRANSITION: Duration = Duration::from_millis(900);
 const FRAME: Duration = Duration::from_millis(16);
 /// Time spent on each week while autoplaying.
 const AUTOPLAY_STEP: Duration = Duration::from_millis(2600);
-
-const BOLD: Font = Font {
-    weight: font::Weight::Bold,
-    ..Font::DEFAULT
-};
-const SEMIBOLD: Font = Font {
-    weight: font::Weight::Semibold,
-    ..Font::DEFAULT
-};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Message {
@@ -40,10 +32,12 @@ pub enum Message {
     First,
     Last,
     TogglePlay,
+    /// Leave the demo; handled by the parent screen.
+    Back,
 }
 
 #[derive(Debug)]
-pub struct App {
+pub struct Demo {
     selected: u8,
     week: Tween,
     started: Instant,
@@ -52,7 +46,7 @@ pub struct App {
     last_step: Instant,
 }
 
-impl Default for App {
+impl Default for Demo {
     fn default() -> Self {
         let now = Instant::now();
         Self {
@@ -66,7 +60,7 @@ impl Default for App {
     }
 }
 
-impl App {
+impl Demo {
     /// Starts the app on `week` (clamped to the valid range).
     #[must_use]
     pub fn starting_at(week: u8) -> Self {
@@ -100,6 +94,7 @@ impl App {
             Message::Next => self.select(self.selected + 1),
             Message::First => self.select(1),
             Message::Last => self.select(WEEKS),
+            Message::Back => {}
             Message::TogglePlay => {
                 self.playing = !self.playing;
                 if self.playing && self.selected == WEEKS {
@@ -271,13 +266,21 @@ impl App {
     }
     fn controls(&self) -> Element<'static, Message> {
         row![
-            control("Prev", Message::Previous, self.selected > 1),
-            control(
-                if self.playing { "Pause" } else { "Play" },
-                Message::TogglePlay,
-                true
+            ui::action(
+                "Prev",
+                (self.selected > 1).then_some(Message::Previous),
+                Tone::Normal
             ),
-            control("Next", Message::Next, self.selected < WEEKS),
+            ui::action(
+                if self.playing { "Pause" } else { "Play" },
+                Some(Message::TogglePlay),
+                Tone::Normal
+            ),
+            ui::action(
+                "Next",
+                (self.selected < WEEKS).then_some(Message::Next),
+                Tone::Normal
+            ),
         ]
         .spacing(8)
         .into()
@@ -321,16 +324,8 @@ fn shortcut(key: &Key) -> Option<Message> {
 
 fn header<'a>() -> Element<'a, Message> {
     row![
-        container(Space::new().width(12).height(12)).style(|_| container::Style {
-            background: Some(Background::Color(theme::ACCENT)),
-            border: Border::default().rounded(6),
-            shadow: Shadow {
-                color: fade(theme::ACCENT, 0.6),
-                offset: Vector::ZERO,
-                blur_radius: 12.0,
-            },
-            ..container::Style::default()
-        }),
+        ui::action("← Projects", Some(Message::Back), Tone::Normal),
+        ui::dot(theme::ACCENT),
         text("embryo").size(20).font(BOLD),
         text("A week-by-week journey through prenatal development")
             .size(14)
@@ -365,20 +360,6 @@ fn progress<'a>(position: f32, tint: Color) -> Element<'a, Message> {
     .into()
 }
 
-fn chip(label: &str, tint: Color) -> Element<'_, Message> {
-    container(text(label).size(12).font(SEMIBOLD).color(tint))
-        .padding([4, 12])
-        .style(move |_| container::Style {
-            background: Some(Background::Color(fade(tint, 0.14))),
-            border: Border::default()
-                .rounded(999)
-                .width(1)
-                .color(fade(tint, 0.4)),
-            ..container::Style::default()
-        })
-        .into()
-}
-
 fn stat<'a>(
     label: &'a str,
     value: String,
@@ -403,53 +384,6 @@ fn stat<'a>(
     .into()
 }
 
-fn control(label: &'static str, message: Message, enabled: bool) -> Element<'static, Message> {
-    button(
-        text(label)
-            .size(14)
-            .font(SEMIBOLD)
-            .align_x(Alignment::Center)
-            .width(Fill),
-    )
-    .padding([10, 0])
-    .width(Fill)
-    .on_press_maybe(enabled.then_some(message))
-    .style(|_, status| {
-        let (bg, fg) = match status {
-            button::Status::Hovered => (fade(theme::ACCENT, 0.28), theme::TEXT),
-            button::Status::Pressed => (fade(theme::ACCENT, 0.4), theme::TEXT),
-            button::Status::Disabled => (theme::SURFACE_RAISED, fade(theme::MUTED, 0.5)),
-            button::Status::Active => (theme::SURFACE_RAISED, theme::TEXT),
-        };
-        button::Style {
-            background: Some(Background::Color(bg)),
-            text_color: fg,
-            border: Border::default().rounded(12).width(1).color(theme::BORDER),
-            ..button::Style::default()
-        }
-    })
-    .into()
-}
-
-fn card<'a>(content: impl Into<Element<'a, Message>>, padding: f32) -> Element<'a, Message> {
-    container(content)
-        .padding(padding)
-        .width(Fill)
-        .style(card_style(18.0))
-        .into()
-}
-
-fn card_style(radius: f32) -> impl Fn(&iced::Theme) -> container::Style {
-    move |_| container::Style {
-        background: Some(Background::Color(theme::SURFACE)),
-        border: Border::default()
-            .rounded(radius)
-            .width(1)
-            .color(theme::BORDER),
-        ..container::Style::default()
-    }
-}
-
 fn color_heart() -> Color {
     iced::color!(0xff6b8b)
 }
@@ -467,7 +401,7 @@ mod tests {
 
     #[test]
     fn navigation_is_clamped() {
-        let mut app = App::default();
+        let mut app = Demo::default();
         app.update(Message::Previous);
         assert_eq!(app.selected, 1);
         app.update(Message::Last);
@@ -480,7 +414,7 @@ mod tests {
 
     #[test]
     fn play_from_the_end_restarts() {
-        let mut app = App::default();
+        let mut app = Demo::default();
         app.update(Message::Last);
         app.update(Message::TogglePlay);
         assert!(app.playing);
@@ -489,7 +423,7 @@ mod tests {
 
     #[test]
     fn autoplay_advances_and_stops_at_term() {
-        let mut app = App::default();
+        let mut app = Demo::default();
         app.update(Message::TogglePlay);
         let mut now = app.now;
         for _ in 0..WEEKS + 2 {
@@ -502,9 +436,9 @@ mod tests {
 
     #[test]
     fn starting_week_is_clamped() {
-        assert_eq!(App::starting_at(0).selected, 1);
-        assert_eq!(App::starting_at(20).selected, 20);
-        assert_eq!(App::starting_at(200).selected, WEEKS);
+        assert_eq!(Demo::starting_at(0).selected, 1);
+        assert_eq!(Demo::starting_at(20).selected, 20);
+        assert_eq!(Demo::starting_at(200).selected, WEEKS);
     }
 
     #[test]

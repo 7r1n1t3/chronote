@@ -6,12 +6,12 @@
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use embryo::app::{App, Message};
+use embryo::demo::{Demo, Message};
 use iced::window::{self, Screenshot};
 use iced::{Element, Size, Subscription, Task};
 
 struct Shot {
-    app: App,
+    app: Demo,
     out: PathBuf,
     delay: Duration,
     started: Instant,
@@ -81,7 +81,7 @@ fn main() -> iced::Result {
 
     iced::application(
         move || Shot {
-            app: App::starting_at(week),
+            app: Demo::starting_at(week),
             out: out.clone(),
             delay,
             started: Instant::now(),

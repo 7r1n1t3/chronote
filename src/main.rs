@@ -1,7 +1,7 @@
 // Hide the console window on Windows release builds.
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
-use embryo::app::App;
+use embryo::demo::Demo;
 use iced::{Size, window};
 
 /// Usage: `embryo [WEEK]`, where WEEK (1-40) is the week to open on.
@@ -11,9 +11,9 @@ fn main() -> iced::Result {
         .and_then(|arg| arg.parse::<u8>().ok())
         .unwrap_or(1);
 
-    iced::application(move || App::starting_at(start), App::update, App::view)
-        .title(App::title)
-        .subscription(App::subscription)
+    iced::application(move || Demo::starting_at(start), Demo::update, Demo::view)
+        .title(Demo::title)
+        .subscription(Demo::subscription)
         .theme(embryo::theme::theme())
         // MSAA makes iced 0.14's wgpu renderer drop canvas meshes on some
         // drivers, so it stays off.

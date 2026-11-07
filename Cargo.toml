@@ -27,6 +27,8 @@ cast_sign_loss = "allow"
 needless_pass_by_value = "allow"
 # Hex color codes (`0xRRGGBB`) read best without separators.
 unreadable_literal = "allow"
+# View helpers return widgets that are always used; the hint is noise.
+must_use_candidate = "allow"
 
 [profile.release]
 lto = "thin"
