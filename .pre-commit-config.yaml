@@ -1,0 +1,56 @@
+# Managed with prek (https://github.com/j178/prek) — install with `prek install --install-hooks`
+default_install_hook_types: [pre-commit, commit-msg]
+default_stages: [pre-commit]
+
+repos:
+  - repo: builtin
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-toml
+      - id: check-yaml
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  - repo: local
+    hooks:
+      - id: typos
+        name: typos (spell check)
+        entry: typos --force-exclude
+        language: system
+        types: [text]
+
+      - id: cargo-fmt
+        name: cargo fmt
+        entry: cargo fmt --all -- --check
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cargo-clippy
+        name: cargo clippy
+        entry: cargo clippy --all-targets --locked -- -D warnings
+        language: system
+        types_or: [rust, toml]
+        pass_filenames: false
+
+      - id: cargo-test
+        name: cargo test
+        entry: cargo test --all-targets --locked
+        language: system
+        types_or: [rust, toml]
+        pass_filenames: false
+
+      - id: rust-analyzer
+        name: rust-analyzer diagnostics
+        entry: scripts/rust-analyzer-check.sh
+        language: system
+        types: [rust]
+        pass_filenames: false
+
+      - id: cog-verify
+        name: cog verify (conventional commit)
+        entry: cog verify --file
+        language: system
+        stages: [commit-msg]

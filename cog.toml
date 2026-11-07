@@ -1,0 +1,14 @@
+# Cocogitto configuration — https://docs.cocogitto.io
+from_latest_tag = false
+ignore_merge_commits = true
+tag_prefix = "v"
+branch_whitelist = ["main"]
+pre_bump_hooks = [
+    "cargo fmt --all -- --check",
+    "cargo clippy --all-targets -- -D warnings",
+    "cargo test --all-targets",
+]
+post_bump_hooks = []
+
+[changelog]
+path = "CHANGELOG.md"
