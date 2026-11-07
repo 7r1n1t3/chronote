@@ -1,0 +1,62 @@
+name: Release
+
+# Builds the binaries for a published GitHub release and attaches them.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build (e.g. v0.1.0-alpha)
+        required: true
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  TAG: ${{ github.event.release.tag_name || inputs.tag }}
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x86_64
+            os: ubuntu-22.04
+          - name: windows-x86_64
+            os: windows-latest
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Linux system libraries
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libxkbcommon-dev libwayland-dev
+      - name: Build
+        shell: bash
+        run: cargo build --release --locked
+        env:
+          # Link the C runtime statically so the .exe needs no VC++ redistributable.
+          RUSTFLAGS: ${{ runner.os == 'Windows' && '-C target-feature=+crt-static' || '' }}
+      - name: Package
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            asset="chronote-$TAG-${{ matrix.name }}.exe"
+            cp target/release/chronote.exe "$asset"
+          else
+            asset="chronote-$TAG-${{ matrix.name }}.tar.gz"
+            tar -czf "$asset" -C target/release chronote
+          fi
+          echo "ASSET=$asset" >> "$GITHUB_ENV"
+      - name: Upload to release
+        shell: bash
+        run: gh release upload "$TAG" "$ASSET" --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
