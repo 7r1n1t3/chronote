@@ -197,7 +197,7 @@ pub static TIMELINE: [Week; WEEKS as usize] = [
         0.0,
         None,
         0.0,
-        "an egg cell (0.1 mm)",
+        "a grain of sand",
         [
             "A follicle in the ovary matures and releases an egg.",
             "The egg can be fertilised for about 12–24 hours.",
