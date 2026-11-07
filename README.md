@@ -71,3 +71,10 @@ cargo run --example screenshot -- menu   out.ppm   # or: editor, or a week 1-40
 - MSAA is turned off: with it enabled, iced 0.14's wgpu renderer dropped
   canvas shapes on the development machine, so curved edges look slightly
   sharper than they could.
+
+## License
+
+Chronote is licensed under the [Apache License, Version 2.0](LICENSE).
+
+The bundled [Inter](https://github.com/rsms/inter) font is © The Inter Project
+Authors and licensed under the [SIL Open Font License 1.1](assets/fonts/OFL.txt).
