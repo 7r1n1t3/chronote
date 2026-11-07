@@ -86,11 +86,8 @@ The hooks run whitespace/TOML/YAML checks, `typos`, `cargo fmt`,
 diagnostics, and `cog verify` on the commit message. CI repeats the checks on
 Linux and Windows.
 
-To capture a screenshot straight from the renderer:
-
-```sh
-cargo run --example screenshot -- menu   out.ppm   # or: editor, or a week 1-40
-```
+`examples/` and `scripts/` are git-ignored, for local-only helpers (such
+as screenshot tools).
 
 ### Known limitations
 

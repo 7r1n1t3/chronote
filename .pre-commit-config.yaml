@@ -44,7 +44,13 @@ repos:
 
       - id: rust-analyzer
         name: rust-analyzer diagnostics
-        entry: scripts/rust-analyzer-check.sh
+        # Fails on any rust-analyzer diagnostic in this repository's own files;
+        # `inactive_code` only marks #[cfg(test)] blocks and is ignored.
+        entry: >-
+          bash -c 'root="$(git rev-parse --show-toplevel)";
+          hits="$(rust-analyzer diagnostics "$root" 2>/dev/null | grep -F "file $root/"
+          | grep -E ": (Error|Warning|WeakWarning) " | grep -v "\"inactive_code\"" || true)";
+          [ -z "$hits" ] || { printf "%s\n" "$hits"; exit 1; }'
         language: system
         types: [rust]
         pass_filenames: false

@@ -1,1 +1,5 @@
 /target
+
+# Local-only developer helpers, not part of the repository.
+/examples/
+/scripts/
