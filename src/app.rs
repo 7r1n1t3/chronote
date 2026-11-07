@@ -1,17 +1,25 @@
 //! Root of the application: owns the project library and switches screens.
 
-use iced::{Element, Subscription, Task};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Instant;
+
+use iced::{Element, Subscription, Task, event, window};
 
 use crate::demo::{self, Demo};
 use crate::editor::{self, Editor, Outcome};
 use crate::menu::{self, Menu};
 use crate::project::{self, Entry, Library, ProjectId, Store, StoreError};
+use crate::ui;
 
 #[derive(Debug, Clone)]
 pub enum Message {
     Menu(menu::Message),
     Demo(demo::Message),
     Editor(editor::Message),
+    /// Window events, logged to diagnose display problems.
+    Window(window::Id, window::Event),
+    /// A display detail queried after the window opened.
+    Display(String),
 }
 
 #[derive(Debug)]
@@ -29,6 +37,7 @@ pub struct App {
     screen: Screen,
     /// Warning shown on the menu, e.g. when saving failed.
     notice: Option<String>,
+    started: Instant,
 }
 
 impl App {
@@ -44,11 +53,24 @@ impl App {
         let mut notice = None;
         let library = match store.as_ref().map(Store::load) {
             None => {
+                log::warn!("no data directory found; timelines will not be saved");
                 notice = Some("No data directory found; timelines will not be saved.".to_owned());
                 Library::default()
             }
-            Some(Ok(library)) => library,
+            Some(Ok(library)) => {
+                log::info!(
+                    "loaded {} timeline(s), sort {:?}, font {}",
+                    library.projects.len(),
+                    library.sort,
+                    library
+                        .font
+                        .as_ref()
+                        .map_or("default", |f| f.family.as_str())
+                );
+                library
+            }
             Some(Err(error)) => {
+                log::warn!("could not load library: {error}");
                 notice = Some(match (&error, store.as_ref().map(Store::quarantine)) {
                     (StoreError::Parse(_), Some(Ok(path))) => format!(
                         "{error}. It was moved to {} and a new library was started.",
@@ -65,12 +87,14 @@ impl App {
             menu: Menu::default(),
             screen: Screen::Menu,
             notice,
+            started: Instant::now(),
         }
     }
 
     /// Opens straight into the demo at `week`.
     #[must_use]
     pub fn with_demo(mut self, week: u8) -> Self {
+        log::info!("opening the Embryo demo at week {week}");
         self.screen = Screen::Demo(Box::new(Demo::starting_at(week)));
         self
     }
@@ -90,7 +114,12 @@ impl App {
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Menu(message) => return self.update_menu(message),
-            Message::Demo(demo::Message::Back) => self.screen = Screen::Menu,
+            Message::Window(id, event) => return self.on_window(id, event),
+            Message::Display(detail) => log::info!("display: {detail}"),
+            Message::Demo(demo::Message::Back) => {
+                log::info!("back to the menu");
+                self.screen = Screen::Menu;
+            }
             Message::Demo(message) => {
                 if let Screen::Demo(demo) = &mut self.screen {
                     demo.update(message);
@@ -101,8 +130,12 @@ impl App {
                     match editor.update(&mut self.library, self.store.as_ref(), message) {
                         Outcome::None => {}
                         Outcome::Changed => self.save(),
-                        Outcome::Back => self.screen = Screen::Menu,
+                        Outcome::Back => {
+                            log::info!("back to the menu");
+                            self.screen = Screen::Menu;
+                        }
                         Outcome::PickFiles(event) => {
+                            log::debug!("showing attachment picker for event {event}");
                             return Task::perform(pick_attachments(), move |paths| {
                                 Message::Editor(editor::Message::Attached(event, paths))
                             });
@@ -120,6 +153,7 @@ impl App {
         }
         match message {
             menu::Message::Open(Entry::Demo) => {
+                log::info!("opening the Embryo demo");
                 self.screen = Screen::Demo(Box::default());
             }
             menu::Message::Open(Entry::Project(id)) => self.open_project(id),
@@ -127,6 +161,7 @@ impl App {
                 let id = self
                     .library
                     .create_project("Untitled timeline", project::now());
+                log::info!("created timeline {id}");
                 self.save();
                 self.open_project(id);
             }
@@ -142,9 +177,11 @@ impl App {
                 if self.menu.confirm_delete == Some(id) {
                     self.menu.confirm_delete = None;
                     self.library.remove_project(id);
+                    log::info!("deleted timeline {id}");
                     if let Some(store) = &self.store
                         && let Err(e) = store.remove_project_files(id)
                     {
+                        log::warn!("could not delete attachments of timeline {id}: {e}");
                         self.notice = Some(format!("Could not delete attachments: {e}"));
                     }
                     self.save();
@@ -154,15 +191,18 @@ impl App {
             }
             menu::Message::CancelDelete | menu::Message::FontChosen(None) => {}
             menu::Message::ChooseFont => {
+                log::debug!("showing font picker");
                 return Task::perform(pick_font(), |path| {
                     Message::Menu(menu::Message::FontChosen(path))
                 });
             }
             menu::Message::FontChosen(Some(path)) => self.set_font(&path),
             menu::Message::ResetFont => {
+                log::info!("font reset to {}", ui::DEFAULT_FAMILY);
                 if let (Some(store), Some(old)) = (&self.store, self.library.font.take())
                     && let Err(e) = store.remove_font(&old)
                 {
+                    log::warn!("could not delete the old font: {e}");
                     self.notice = Some(format!("Could not delete the old font: {e}"));
                 }
                 self.save();
@@ -175,26 +215,35 @@ impl App {
     /// Imports a font file and makes it the saved choice.
     fn set_font(&mut self, path: &std::path::Path) {
         let Some(store) = &self.store else {
+            log::warn!("cannot store a custom font without a data directory");
             self.notice = Some("Custom fonts need a data directory.".to_owned());
             return;
         };
         match store.import_font(path) {
             Ok(font) => {
+                log::info!("custom font set to {} ({})", font.family, font.file);
                 if let Some(old) = self.library.font.replace(font) {
                     let _ = store.remove_font(&old);
                 }
                 self.notice = None;
                 self.save();
             }
-            Err(e) => self.notice = Some(format!("Could not use {}: {e}", path.display())),
+            Err(e) => {
+                log::warn!("could not use font {}: {e}", path.display());
+                self.notice = Some(format!("Could not use {}: {e}", path.display()));
+            }
         }
     }
 
     /// Starts a fresh copy of the app and closes this one.
     fn restart(&mut self) -> Task<Message> {
         match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).spawn()) {
-            Ok(_) => iced::exit(),
+            Ok(_) => {
+                log::info!("restarting to apply settings");
+                iced::exit()
+            }
             Err(e) => {
+                log::warn!("could not restart: {e}");
                 self.notice = Some(format!("Could not restart, please reopen the app: {e}"));
                 Task::none()
             }
@@ -203,25 +252,64 @@ impl App {
 
     fn open_project(&mut self, id: ProjectId) {
         if let Some(project) = self.library.project(id) {
+            log::info!("opening timeline {id} ({:?})", project.name);
             self.screen = Screen::Editor(Editor::new(project));
         }
+    }
+
+    /// Logs window events that matter for diagnosing display problems.
+    fn on_window(&mut self, id: window::Id, event: window::Event) -> Task<Message> {
+        match event {
+            window::Event::Opened { position, size } => {
+                log::info!(
+                    "window opened: {:.0}x{:.0} at {position:?}",
+                    size.width,
+                    size.height
+                );
+                return Task::batch([
+                    window::scale_factor(id).map(|f| Message::Display(format!("scale factor {f}"))),
+                    window::monitor_size(id).map(|m| {
+                        Message::Display(m.map_or_else(
+                            || "monitor size unknown".to_owned(),
+                            |s| format!("monitor {:.0}x{:.0}", s.width, s.height),
+                        ))
+                    }),
+                ]);
+            }
+            window::Event::RedrawRequested(_) => log::info!(
+                "first frame drawn {:.0} ms after start",
+                self.started.elapsed().as_secs_f64() * 1000.0
+            ),
+            window::Event::Rescaled(factor) => log::info!("scale factor changed to {factor}"),
+            window::Event::Resized(size) => {
+                log::debug!("window resized to {:.0}x{:.0}", size.width, size.height);
+            }
+            window::Event::CloseRequested => log::info!("window close requested"),
+            window::Event::Closed => log::info!("window closed"),
+            other => log::debug!("window event: {other:?}"),
+        }
+        Task::none()
     }
 
     /// Persists the library, surfacing failures on the menu.
     fn save(&mut self) {
         if let Some(store) = &self.store
-            && let Err(e) = store.save(&self.library)
+            && let Err(e) = store
+                .save(&self.library)
+                .inspect(|()| log::debug!("saved {} timeline(s)", self.library.projects.len()))
         {
+            log::warn!("could not save timelines: {e}");
             self.notice = Some(format!("Could not save timelines: {e}"));
         }
     }
 
     pub fn subscription(&self) -> Subscription<Message> {
-        match &self.screen {
+        let screen = match &self.screen {
             Screen::Demo(demo) => demo.subscription().map(Message::Demo),
             Screen::Editor(_) => Editor::subscription().map(Message::Editor),
             Screen::Menu => Subscription::none(),
-        }
+        };
+        Subscription::batch([screen, event::listen_raw(window_event)])
     }
 
     pub fn view(&self) -> Element<'_, Message> {
@@ -248,6 +336,25 @@ impl App {
 }
 
 /// Shows the native file picker, limited to supported attachment types.
+static FIRST_FRAME_SEEN: AtomicBool = AtomicBool::new(false);
+
+/// Forwards window events for logging; only the first redraw is kept so
+/// the app does not wake up on every frame.
+fn window_event(event: iced::Event, _status: event::Status, id: window::Id) -> Option<Message> {
+    let iced::Event::Window(event) = event else {
+        return None;
+    };
+    if matches!(event, window::Event::RedrawRequested(_))
+        && FIRST_FRAME_SEEN.swap(true, Ordering::Relaxed)
+    {
+        return None;
+    }
+    if matches!(event, window::Event::Moved(_)) {
+        return None;
+    }
+    Some(Message::Window(id, event))
+}
+
 /// Shows the native file picker for TrueType/OpenType fonts.
 async fn pick_font() -> Option<std::path::PathBuf> {
     rfd::AsyncFileDialog::new()

@@ -12,6 +12,7 @@ categories = ["gui", "science"]
 [dependencies]
 directories = "6.0.0"
 iced = { version = "0.14", features = ["canvas", "tokio"] }
+log = { version = "0.4.35", features = ["std"] }
 opener = "0.9.0"
 rfd = "0.17.2"
 serde = { version = "1.0.229", features = ["derive"] }

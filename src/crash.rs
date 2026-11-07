@@ -24,6 +24,7 @@ pub fn install() {
         let mut details = info.to_string();
         let backtrace = std::backtrace::Backtrace::force_capture();
         let _ = write!(details, "\n\nBacktrace:\n{backtrace}");
+        log::error!("{details}");
         report("Chronote crashed", &details);
         default(info);
     }));

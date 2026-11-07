@@ -50,6 +50,12 @@ started.
 If the app ever fails to start or crashes, it shows an error dialog and writes
 the details to `crash.log` in the same folder; please include it in bug reports.
 
+Every run also writes `chronote.log` there (the previous run is kept as
+`chronote.log.old`). It records the OS (including whether it is Windows 11),
+the graphics adapter and backend iced picked, window size and scale factor,
+the first rendered frame, and warnings such as failed saves or attachments.
+Set `CHRONOTE_LOG=debug` for more detail.
+
 ## Development
 
 Requirements: a stable Rust toolchain, [prek](https://github.com/j178/prek),

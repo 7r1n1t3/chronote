@@ -9,16 +9,47 @@ use iced::{Size, window};
 /// on that week; otherwise the project menu is shown.
 fn main() -> iced::Result {
     chronote::crash::install();
+    let store = Store::default_location();
+    let log_file = chronote::logging::init(store.as_ref().map(Store::root));
+    log::info!(
+        "Chronote {} starting on {}",
+        env!("CARGO_PKG_VERSION"),
+        chronote::logging::os_description()
+    );
+    let overrides = chronote::logging::overrides();
+    if !overrides.is_empty() {
+        log::info!("environment overrides: {}", overrides.join(", "));
+    }
+    match (&store, &log_file) {
+        (Some(store), Some(file)) => log::info!(
+            "data directory {}, log file {}",
+            store.root().display(),
+            file.display()
+        ),
+        (Some(store), None) => log::warn!(
+            "data directory {} (log file unavailable)",
+            store.root().display()
+        ),
+        (None, _) => log::warn!("no data directory found; nothing will be saved"),
+    }
 
     let start = std::env::args()
         .nth(1)
         .and_then(|arg| arg.parse::<u8>().ok());
 
     // The app-wide font is fixed at startup, so load the saved choice first.
-    let custom_font = Store::default_location().and_then(|store| {
+    let custom_font = store.as_ref().and_then(|store| {
         let font = store.load().ok()?.font?;
-        let bytes = store.read_font(&font).ok()?;
-        Some((font.family, bytes))
+        match store.read_font(&font) {
+            Ok(bytes) => {
+                log::info!("using custom font {}", font.family);
+                Some((font.family, bytes))
+            }
+            Err(e) => {
+                log::warn!("custom font {} unavailable, using Inter: {e}", font.family);
+                None
+            }
+        }
     });
     if let Some((family, _)) = &custom_font {
         chronote::ui::set_family(Box::leak(family.clone().into_boxed_str()));
@@ -51,7 +82,9 @@ fn main() -> iced::Result {
         app = app.font(bytes);
     }
     let result = app.run();
+    log::info!("exiting");
     if let Err(error) = &result {
+        log::error!("could not start: {error}");
         chronote::crash::report("Chronote could not start", &error.to_string());
     }
     result

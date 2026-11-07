@@ -8,6 +8,7 @@ pub mod data;
 pub mod demo;
 pub mod editor;
 pub mod fetus;
+pub mod logging;
 pub mod menu;
 pub mod project;
 pub mod theme;

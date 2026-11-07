@@ -121,6 +121,7 @@ impl Editor {
                 kind: EventKind::Instant { at },
                 attachments: Vec::new(),
             });
+            log::info!("added event {id} to timeline {}", project.id);
             let event = project.event(id);
             self.select(event);
             return Outcome::Changed;
@@ -151,6 +152,7 @@ impl Editor {
                 }
             }
             Message::Select(id) => {
+                log::debug!("selected event {id:?}");
                 let event = id.and_then(|id| project.event(id));
                 self.select(event);
                 Outcome::None
@@ -182,6 +184,7 @@ impl Editor {
                 if let Some(id) = self.selected {
                     self.attach(project, store, id, &[path])
                 } else {
+                    log::warn!("file dropped with no event selected: {}", path.display());
                     self.error = Some("Select an event before dropping files.".to_owned());
                     Outcome::None
                 }
@@ -191,9 +194,13 @@ impl Editor {
                     .selected
                     .and_then(|id| project.event(id))
                     .and_then(|e| e.attachments.get(index));
+                if let Some(file) = file {
+                    log::info!("opening attachment {}", file.name);
+                }
                 if let (Some(file), Some(store)) = (file, store)
                     && let Err(e) = opener::open(store.attachment_path(file))
                 {
+                    log::warn!("could not open attachment {}: {e}", file.name);
                     self.error = Some(format!("Could not open {}: {e}", file.name));
                 }
                 Outcome::None
@@ -206,9 +213,11 @@ impl Editor {
                     return Outcome::None;
                 }
                 let file = event.attachments.remove(index);
+                log::info!("removed attachment {} from event {}", file.name, event.id);
                 if let Some(store) = store
                     && let Err(e) = store.remove_attachment(&file)
                 {
+                    log::warn!("could not delete attachment file {}: {e}", file.name);
                     self.error = Some(format!("Could not delete {}: {e}", file.name));
                 }
                 Outcome::Changed
@@ -218,9 +227,11 @@ impl Editor {
                     return Outcome::None;
                 };
                 project.remove_event(id);
+                log::info!("deleted event {id} from timeline {}", project.id);
                 if let Some(store) = store
                     && let Err(e) = store.remove_event_files(project.id, id)
                 {
+                    log::warn!("could not delete attachments of event {id}: {e}");
                     self.error = Some(format!("Could not delete attachments: {e}"));
                 }
                 Outcome::Changed
@@ -285,6 +296,7 @@ impl Editor {
         paths: &[PathBuf],
     ) -> Outcome {
         let Some(store) = store else {
+            log::warn!("cannot attach files without a data directory");
             self.error = Some("Attachments need a data directory.".to_owned());
             return Outcome::None;
         };
@@ -296,14 +308,20 @@ impl Editor {
         let before = event.attachments.len();
         for path in paths {
             match store.import_attachment(project_id, id, path) {
-                Ok(file) => event.attachments.push(file),
-                Err(e) => failures.push(format!(
-                    "{}: {e}",
-                    path.file_name().map_or_else(
-                        || path.display().to_string(),
-                        |n| n.to_string_lossy().into_owned()
-                    )
-                )),
+                Ok(file) => {
+                    log::info!("attached {} to event {id}", file.name);
+                    event.attachments.push(file);
+                }
+                Err(e) => {
+                    log::warn!("could not attach {}: {e}", path.display());
+                    failures.push(format!(
+                        "{}: {e}",
+                        path.file_name().map_or_else(
+                            || path.display().to_string(),
+                            |n| n.to_string_lossy().into_owned()
+                        )
+                    ));
+                }
             }
         }
         self.error = (!failures.is_empty()).then(|| failures.join("\n"));
