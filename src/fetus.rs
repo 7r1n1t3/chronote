@@ -1,4 +1,4 @@
-//! Procedural, animated illustration of the embryo / fetus.
+//! Embryo demo: procedural, animated illustration of the developing baby.
 //!
 //! Everything is driven by a continuous `week` value, so moving between
 //! weeks morphs the drawing smoothly instead of swapping pictures.

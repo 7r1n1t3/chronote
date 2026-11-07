@@ -1,4 +1,4 @@
-//! Week-by-week human prenatal development data.
+//! Embryo demo: week-by-week human prenatal development data.
 //!
 //! Weeks are *gestational* weeks, counted from the first day of the last
 //! menstrual period (the clinical convention). Conception happens around the

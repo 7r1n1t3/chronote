@@ -14,11 +14,13 @@ pub const MUTED: Color = color!(0x8a93b2);
 pub const ACCENT: Color = color!(0xff7a9c);
 pub const DANGER: Color = color!(0xf56565);
 
+/// Accent colours used across the app (menu tints, event kinds, icon);
+/// the Embryo demo also uses them for its three trimesters.
 pub const FIRST: Color = color!(0x4fd1c5);
 pub const SECOND: Color = color!(0x9f7aea);
 pub const THIRD: Color = color!(0xf6ad55);
 
-/// Signature color of a trimester.
+/// Embryo demo: the accent colour of a trimester.
 #[must_use]
 pub fn trimester(trimester: Trimester) -> Color {
     match trimester {

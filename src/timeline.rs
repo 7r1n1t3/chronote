@@ -1,4 +1,5 @@
-//! Interactive week scrubber: click, drag or scroll to pick a week.
+//! Embryo demo: the week scrubber at the bottom of the screen. Click,
+//! drag or scroll to pick a week.
 
 use iced::alignment::Vertical;
 use iced::mouse::{self, Button, ScrollDelta};
