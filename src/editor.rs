@@ -448,7 +448,7 @@ impl Editor {
                     scrollable::Scrollbar::new().width(4).scroller_width(4),
                 ))
                 .height(Fill),
-            ui::action("Delete event", Some(Message::DeleteEvent), Tone::Danger),
+            ui::wide_action("Delete event", Some(Message::DeleteEvent), Tone::Danger),
         ]
         .spacing(12)
         .into()
@@ -521,7 +521,7 @@ fn event_list(project: &Project) -> Element<'_, Message> {
     }
 
     column![
-        ui::action("+ Add event", Some(Message::AddEvent), Tone::Primary),
+        ui::wide_action("+ Add event", Some(Message::AddEvent), Tone::Primary),
         label("EVENTS"),
         scrollable(list.padding(Padding::ZERO.right(10)))
             .direction(scrollable::Direction::Vertical(
@@ -574,7 +574,7 @@ fn attachments<'a>(event: &'a Event, error: Option<&'a str>) -> Element<'a, Mess
         );
     }
     list = list
-        .push(ui::action(
+        .push(ui::wide_action(
             "Attach PDF / DOCX…",
             Some(Message::Attach),
             Tone::Normal,
@@ -732,6 +732,12 @@ mod tests {
         );
         assert_eq!(outcome, Outcome::Changed);
         assert!(event(&lib, &ed).description.starts_with('x'));
+
+        // Re-selecting the event loads its saved description back.
+        let id = ed.selected();
+        ed.update(&mut lib, None, Message::Select(None));
+        ed.update(&mut lib, None, Message::Select(id));
+        assert!(ed.description.text().starts_with('x'));
     }
 
     #[test]

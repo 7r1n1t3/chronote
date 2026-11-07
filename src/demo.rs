@@ -266,17 +266,17 @@ impl Demo {
     }
     fn controls(&self) -> Element<'static, Message> {
         row![
-            ui::action(
+            ui::wide_action(
                 "Prev",
                 (self.selected > 1).then_some(Message::Previous),
                 Tone::Normal
             ),
-            ui::action(
+            ui::wide_action(
                 if self.playing { "Pause" } else { "Play" },
                 Some(Message::TogglePlay),
                 Tone::Normal
             ),
-            ui::action(
+            ui::wide_action(
                 "Next",
                 (self.selected < WEEKS).then_some(Message::Next),
                 Tone::Normal

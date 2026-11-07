@@ -14,7 +14,7 @@ use crate::theme::{self, fade};
 const PAD_X: f32 = 32.0;
 const TOP: f32 = 28.0;
 const AXIS_SPACE: f32 = 44.0;
-const LANE: f32 = 40.0;
+const LANE: f32 = 56.0;
 const BAR: f32 = 10.0;
 const DOT: f32 = 7.0;
 

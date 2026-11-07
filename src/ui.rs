@@ -129,8 +129,21 @@ pub fn button_style(tone: Tone) -> impl Fn(&Theme, button::Status) -> button::St
     }
 }
 
-/// A labelled button that fills its width.
+/// A labelled button sized to its content.
 pub fn action<'a, Message: Clone + 'a>(
+    label: impl text::IntoFragment<'a>,
+    message: Option<Message>,
+    tone: Tone,
+) -> Element<'a, Message> {
+    button(text(label).size(14).font(SEMIBOLD))
+        .padding([10, 14])
+        .on_press_maybe(message)
+        .style(button_style(tone))
+        .into()
+}
+
+/// A labelled button that fills the available width.
+pub fn wide_action<'a, Message: Clone + 'a>(
     label: impl text::IntoFragment<'a>,
     message: Option<Message>,
     tone: Tone,
@@ -143,6 +156,7 @@ pub fn action<'a, Message: Clone + 'a>(
             .width(Fill),
     )
     .padding([10, 14])
+    .width(Fill)
     .on_press_maybe(message)
     .style(button_style(tone))
     .into()
