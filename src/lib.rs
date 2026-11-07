@@ -4,6 +4,7 @@ pub mod anim;
 pub mod data;
 pub mod demo;
 pub mod fetus;
+pub mod project;
 pub mod theme;
 pub mod timeline;
 pub mod ui;
