@@ -4,6 +4,8 @@ ignore_merge_commits = true
 tag_prefix = "v"
 branch_whitelist = ["main"]
 pre_bump_hooks = [
+    "sed -i -E '0,/^version = /s/^version = \".*\"/version = \"{{version}}\"/' Cargo.toml",
+    "cargo check --quiet",
     "cargo fmt --all -- --check",
     "cargo clippy --all-targets -- -D warnings",
     "cargo test --all-targets",
