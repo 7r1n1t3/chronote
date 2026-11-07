@@ -1,6 +1,6 @@
 //! Shared widgets and styles used by every screen.
 
-use iced::widget::{Space, button, container, text};
+use iced::widget::{Space, button, container, text, text_editor, text_input};
 use iced::{
     Alignment, Background, Border, Color, Element, Fill, Font, Shadow, Theme, Vector, font,
 };
@@ -151,4 +151,38 @@ pub fn action<'a, Message: Clone + 'a>(
 fn mix_over(base: Color, accent: Color, t: f32) -> Color {
     let base = Color { a: 1.0, ..base };
     crate::anim::mix(base, accent, t)
+}
+
+pub fn input_style(_: &Theme, status: text_input::Status) -> text_input::Style {
+    let focused = matches!(status, text_input::Status::Focused { .. });
+    let hovered = matches!(status, text_input::Status::Hovered);
+    text_input::Style {
+        background: Background::Color(theme::SURFACE_RAISED),
+        border: Border::default().rounded(10).width(1).color(if focused {
+            fade(theme::ACCENT, 0.7)
+        } else if hovered {
+            fade(theme::ACCENT, 0.3)
+        } else {
+            theme::BORDER
+        }),
+        icon: theme::MUTED,
+        placeholder: fade(theme::MUTED, 0.7),
+        value: theme::TEXT,
+        selection: fade(theme::ACCENT, 0.35),
+    }
+}
+
+pub fn editor_style(_: &Theme, status: text_editor::Status) -> text_editor::Style {
+    let focused = matches!(status, text_editor::Status::Focused { .. });
+    text_editor::Style {
+        background: Background::Color(theme::SURFACE_RAISED),
+        border: Border::default().rounded(10).width(1).color(if focused {
+            fade(theme::ACCENT, 0.7)
+        } else {
+            theme::BORDER
+        }),
+        placeholder: fade(theme::MUTED, 0.7),
+        value: theme::TEXT,
+        selection: fade(theme::ACCENT, 0.35),
+    }
 }

@@ -3,19 +3,22 @@
 use iced::{Element, Subscription, Task};
 
 use crate::demo::{self, Demo};
+use crate::editor::{self, Editor, Outcome};
 use crate::menu::{self, Menu};
-use crate::project::{self, Entry, Library, Store, StoreError};
+use crate::project::{self, Entry, Library, ProjectId, Store, StoreError};
 
 #[derive(Debug, Clone)]
 pub enum Message {
     Menu(menu::Message),
     Demo(demo::Message),
+    Editor(editor::Message),
 }
 
 #[derive(Debug)]
 enum Screen {
     Menu,
     Demo(Box<Demo>),
+    Editor(Editor),
 }
 
 #[derive(Debug)]
@@ -77,6 +80,10 @@ impl App {
         match &self.screen {
             Screen::Menu => "Timelines".to_owned(),
             Screen::Demo(demo) => demo.title(),
+            Screen::Editor(editor) => self.library.project(editor.project).map_or_else(
+                || "Timelines".to_owned(),
+                |p| format!("{} — Timelines", p.name),
+            ),
         }
     }
 
@@ -87,6 +94,15 @@ impl App {
             Message::Demo(message) => {
                 if let Screen::Demo(demo) = &mut self.screen {
                     demo.update(message);
+                }
+            }
+            Message::Editor(message) => {
+                if let Screen::Editor(editor) = &mut self.screen {
+                    match editor.update(&mut self.library, message) {
+                        Outcome::None => {}
+                        Outcome::Changed => self.save(),
+                        Outcome::Back => self.screen = Screen::Menu,
+                    }
                 }
             }
         }
@@ -101,10 +117,13 @@ impl App {
             menu::Message::Open(Entry::Demo) => {
                 self.screen = Screen::Demo(Box::default());
             }
+            menu::Message::Open(Entry::Project(id)) => self.open_project(id),
             menu::Message::Create => {
-                self.library
+                let id = self
+                    .library
                     .create_project("Untitled project", project::now());
                 self.save();
+                self.open_project(id);
             }
             menu::Message::Sort(mode) => {
                 self.library.sort = mode;
@@ -128,8 +147,13 @@ impl App {
                     self.menu.confirm_delete = Some(id);
                 }
             }
-            // Opening projects arrives with the editor.
-            menu::Message::Open(Entry::Project(_)) | menu::Message::CancelDelete => {}
+            menu::Message::CancelDelete => {}
+        }
+    }
+
+    fn open_project(&mut self, id: ProjectId) {
+        if let Some(project) = self.library.project(id) {
+            self.screen = Screen::Editor(Editor::new(project));
         }
     }
 
@@ -145,7 +169,7 @@ impl App {
     pub fn subscription(&self) -> Subscription<Message> {
         match &self.screen {
             Screen::Demo(demo) => demo.subscription().map(Message::Demo),
-            Screen::Menu => Subscription::none(),
+            Screen::Menu | Screen::Editor(_) => Subscription::none(),
         }
     }
 
@@ -156,6 +180,13 @@ impl App {
                 .view(&self.library, self.notice.as_deref())
                 .map(Message::Menu),
             Screen::Demo(demo) => demo.view().map(Message::Demo),
+            Screen::Editor(editor) => match self.library.project(editor.project) {
+                Some(project) => editor.view(project).map(Message::Editor),
+                None => self
+                    .menu
+                    .view(&self.library, self.notice.as_deref())
+                    .map(Message::Menu),
+            },
         }
     }
 
@@ -192,6 +223,23 @@ mod tests {
         let reloaded = app(&dir);
         assert_eq!(reloaded.library().projects.len(), 1);
         assert_eq!(reloaded.library().sort, project::SortMode::Manual);
+    }
+
+    #[test]
+    fn creating_opens_the_editor_and_edits_persist() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = app(&dir);
+        let _ = a.update(Message::Menu(menu::Message::Create));
+        assert!(matches!(a.screen, Screen::Editor(_)));
+        let _ = a.update(Message::Editor(editor::Message::Rename("Thesis".into())));
+        let _ = a.update(Message::Editor(editor::Message::AddEvent));
+        let _ = a.update(Message::Editor(editor::Message::Back));
+        assert!(matches!(a.screen, Screen::Menu));
+
+        let reloaded = app(&dir);
+        let p = &reloaded.library().projects[0];
+        assert_eq!(p.name, "Thesis");
+        assert_eq!(p.events.len(), 1);
     }
 
     #[test]
