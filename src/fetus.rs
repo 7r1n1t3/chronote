@@ -100,15 +100,15 @@ impl Scene {
                 .with_color(fade(theme::ACCENT, 0.08)),
         );
 
-        // Placenta on the upper-right wall, once the pregnancy is implanted.
+        // Placenta on the lower-right wall, once the pregnancy is implanted.
         let placenta = smoothstep(4.0, 6.0, self.week);
         if placenta > 0.0 {
             let arc = Path::new(|p| {
                 p.arc(canvas::path::Arc {
                     center: self.center,
                     radius: self.sac * 0.9,
-                    start_angle: (-70f32).to_radians().into(),
-                    end_angle: (-5f32).to_radians().into(),
+                    start_angle: (5f32).to_radians().into(),
+                    end_angle: (70f32).to_radians().into(),
                 });
             });
             let width = self.sac * lerp(0.06, 0.14, smoothstep(5.0, 30.0, self.week));
@@ -313,8 +313,8 @@ impl Body {
             span: lerp(255.0, 205.0, smoothstep(5.0, 20.0, w)).to_radians(),
             tail: 45f32.to_radians() * (1.0 - smoothstep(7.0, 9.5, w)),
             thickness: radius
-                * (lerp(0.42, 0.6, smoothstep(5.0, 24.0, w)) + 0.1 * smoothstep(26.0, 38.0, w)),
-            head: radius * lerp(0.95, 0.62, smoothstep(6.0, 36.0, w)),
+                * (lerp(0.55, 0.85, smoothstep(5.0, 24.0, w)) + 0.15 * smoothstep(26.0, 38.0, w)),
+            head: radius * lerp(0.85, 0.6, smoothstep(6.0, 36.0, w)),
             skin,
             shade: mix(skin, color!(0x6b2340), 0.35),
             sac_center: scene.center,
@@ -431,7 +431,7 @@ impl Body {
     fn head_center(&self) -> Point {
         let a = self.start;
         let tangent = Vector::new(-a.sin(), a.cos());
-        self.spine(0.0) + tangent * (self.head * 0.55) - self.inward(0.0) * (self.head * 0.25)
+        self.spine(0.0) + tangent * (self.head * 0.3) - self.inward(0.0) * (self.head * 0.35)
     }
 
     fn head(&self, frame: &mut Frame) {
@@ -589,10 +589,10 @@ impl Body {
 
     fn cord(&self, frame: &mut Frame) {
         let belly = self.spine(0.62) + self.inward(0.62) * (self.width(0.62) * 0.4);
-        let placenta = self.sac_center + polar(self.sac * 0.88, (-35f32).to_radians());
+        let placenta = self.sac_center + polar(self.sac * 0.88, (38f32).to_radians());
         let sway = (self.time * 0.7).sin() * self.radius * 0.15;
         let c1 = belly + Vector::new(self.radius * 0.8, self.radius * 0.5 + sway);
-        let c2 = placenta + Vector::new(-self.radius * 0.2, self.radius * 0.9 - sway);
+        let c2 = placenta + Vector::new(-self.radius * 0.9, -self.radius * 0.2 - sway);
         let path = Path::new(|p| {
             p.move_to(belly);
             p.bezier_curve_to(c1, c2, placenta);
