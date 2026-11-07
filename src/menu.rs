@@ -1,13 +1,15 @@
 //! Startup screen: a scrollable list of study timelines.
 
-use iced::widget::{button, column, container, row, scrollable, text};
+use std::path::PathBuf;
+
+use iced::widget::{Space, button, column, container, row, scrollable, text};
 use iced::{Alignment, Background, Border, Color, Element, Fill, Length, Theme};
 
 use crate::project::{self, Entry, Library, ProjectId, SortMode};
 use crate::theme::{self, fade};
 use crate::ui::{self, Tone};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Message {
     Open(Entry),
     Create,
@@ -17,6 +19,13 @@ pub enum Message {
     /// First click asks for confirmation, second click deletes.
     Delete(ProjectId),
     CancelDelete,
+    /// Show a font file picker.
+    ChooseFont,
+    FontChosen(Option<PathBuf>),
+    /// Go back to the bundled font.
+    ResetFont,
+    /// Relaunch the app so a new font takes effect.
+    Restart,
 }
 
 /// Transient menu state (not saved).
@@ -64,7 +73,10 @@ impl Menu {
         }
         list = list.push(create_entry());
 
-        let mut content = column![header, sort].spacing(22).padding(36).max_width(820);
+        let mut content = column![header, sort, font_row(library)]
+            .spacing(22)
+            .padding(36)
+            .max_width(820);
         if let Some(notice) = notice {
             content = content.push(
                 container(text(notice).size(13).color(theme::THIRD))
@@ -239,16 +251,54 @@ fn entry_style(_: &Theme, status: button::Status) -> button::Style {
     }
 }
 
-fn sort_button(label: &str, mode: SortMode, current: SortMode) -> Element<'_, Message> {
+/// Font setting: current family, picker, reset and restart prompt.
+fn font_row(library: &Library) -> Element<'_, Message> {
+    let chosen = library
+        .font
+        .as_ref()
+        .map_or(ui::DEFAULT_FAMILY, |f| f.family.as_str());
+    let mut row = row![
+        text("FONT")
+            .size(11)
+            .font(ui::semibold())
+            .color(theme::MUTED),
+        text(if library.font.is_some() {
+            chosen.to_owned()
+        } else {
+            format!("{chosen} (default)")
+        })
+        .size(13),
+        pill("Choose font…", Some(Message::ChooseFont), Tone::Normal),
+    ]
+    .spacing(8)
+    .align_y(Alignment::Center);
+    if library.font.is_some() {
+        row = row.push(pill("Reset", Some(Message::ResetFont), Tone::Normal));
+    }
+    if chosen != ui::family() {
+        row = row
+            .push(Space::new().width(8))
+            .push(text("Restart to apply").size(12).color(theme::THIRD))
+            .push(pill("Restart now", Some(Message::Restart), Tone::Primary));
+    }
+    row.into()
+}
+
+fn pill(label: &str, message: Option<Message>, tone: Tone) -> Element<'_, Message> {
     button(text(label).size(13).font(ui::semibold()))
         .padding([6, 14])
-        .on_press(Message::Sort(mode))
-        .style(ui::button_style(if mode == current {
-            Tone::Selected
-        } else {
-            Tone::Normal
-        }))
+        .on_press_maybe(message)
+        .style(ui::button_style(tone))
         .into()
+}
+
+fn sort_button(label: &str, mode: SortMode, current: SortMode) -> Element<'_, Message> {
+    let tone = if mode == current {
+        Tone::Selected
+    } else {
+        Tone::Normal
+    };
+    pill(label, Some(Message::Sort(mode)), tone)
 }
 
 fn small(label: &str, message: Option<Message>) -> Element<'_, Message> {

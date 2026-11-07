@@ -89,7 +89,7 @@ impl App {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::Menu(message) => self.update_menu(message),
+            Message::Menu(message) => return self.update_menu(message),
             Message::Demo(demo::Message::Back) => self.screen = Screen::Menu,
             Message::Demo(message) => {
                 if let Screen::Demo(demo) = &mut self.screen {
@@ -114,7 +114,7 @@ impl App {
         Task::none()
     }
 
-    fn update_menu(&mut self, message: menu::Message) {
+    fn update_menu(&mut self, message: menu::Message) -> Task<Message> {
         if !matches!(message, menu::Message::Delete(_)) {
             self.menu.confirm_delete = None;
         }
@@ -152,7 +152,52 @@ impl App {
                     self.menu.confirm_delete = Some(id);
                 }
             }
-            menu::Message::CancelDelete => {}
+            menu::Message::CancelDelete | menu::Message::FontChosen(None) => {}
+            menu::Message::ChooseFont => {
+                return Task::perform(pick_font(), |path| {
+                    Message::Menu(menu::Message::FontChosen(path))
+                });
+            }
+            menu::Message::FontChosen(Some(path)) => self.set_font(&path),
+            menu::Message::ResetFont => {
+                if let (Some(store), Some(old)) = (&self.store, self.library.font.take())
+                    && let Err(e) = store.remove_font(&old)
+                {
+                    self.notice = Some(format!("Could not delete the old font: {e}"));
+                }
+                self.save();
+            }
+            menu::Message::Restart => return self.restart(),
+        }
+        Task::none()
+    }
+
+    /// Imports a font file and makes it the saved choice.
+    fn set_font(&mut self, path: &std::path::Path) {
+        let Some(store) = &self.store else {
+            self.notice = Some("Custom fonts need a data directory.".to_owned());
+            return;
+        };
+        match store.import_font(path) {
+            Ok(font) => {
+                if let Some(old) = self.library.font.replace(font) {
+                    let _ = store.remove_font(&old);
+                }
+                self.notice = None;
+                self.save();
+            }
+            Err(e) => self.notice = Some(format!("Could not use {}: {e}", path.display())),
+        }
+    }
+
+    /// Starts a fresh copy of the app and closes this one.
+    fn restart(&mut self) -> Task<Message> {
+        match std::env::current_exe().and_then(|exe| std::process::Command::new(exe).spawn()) {
+            Ok(_) => iced::exit(),
+            Err(e) => {
+                self.notice = Some(format!("Could not restart, please reopen the app: {e}"));
+                Task::none()
+            }
         }
     }
 
@@ -203,6 +248,16 @@ impl App {
 }
 
 /// Shows the native file picker, limited to supported attachment types.
+/// Shows the native file picker for TrueType/OpenType fonts.
+async fn pick_font() -> Option<std::path::PathBuf> {
+    rfd::AsyncFileDialog::new()
+        .set_title("Choose a font")
+        .add_filter("Fonts (TTF, OTF)", &project::FONT_EXTENSIONS)
+        .pick_file()
+        .await
+        .map(|file| file.path().to_path_buf())
+}
+
 async fn pick_attachments() -> Vec<std::path::PathBuf> {
     rfd::AsyncFileDialog::new()
         .set_title("Attach files")
@@ -257,6 +312,28 @@ mod tests {
         let p = &reloaded.library().projects[0];
         assert_eq!(p.name, "Thesis");
         assert_eq!(p.events.len(), 1);
+    }
+
+    #[test]
+    fn choosing_and_resetting_a_font_is_saved() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut a = app(&dir);
+        let inter =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/fonts/Inter-Regular.ttf");
+        let _ = a.update(Message::Menu(menu::Message::FontChosen(Some(inter))));
+        let font = app(&dir).library().font.clone().unwrap();
+        assert_eq!(font.family, "Inter");
+        assert!(dir.path().join(&font.file).exists());
+
+        let _ = a.update(Message::Menu(menu::Message::ResetFont));
+        assert!(app(&dir).library().font.is_none());
+        assert!(!dir.path().join(&font.file).exists());
+
+        let _ = a.update(Message::Menu(menu::Message::FontChosen(Some(
+            "x.txt".into(),
+        ))));
+        assert!(a.notice.is_some());
+        assert!(app(&dir).library().font.is_none());
     }
 
     #[test]

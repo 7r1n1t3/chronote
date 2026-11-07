@@ -16,9 +16,12 @@ pub type EventId = u64;
 pub const DEMO_NAME: &str = "Embryo";
 /// File extensions accepted as attachments.
 pub const ATTACHMENT_EXTENSIONS: [&str; 2] = ["pdf", "docx"];
+/// File extensions accepted as custom fonts.
+pub const FONT_EXTENSIONS: [&str; 2] = ["ttf", "otf"];
 
 const LIBRARY_FILE: &str = "library.json";
 const ATTACHMENT_DIR: &str = "attachments";
+const FONT_DIR: &str = "fonts";
 
 /// How the menu orders its entries.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -47,6 +50,8 @@ pub struct Library {
     /// Manual order of the menu entries.
     order: Vec<Entry>,
     pub projects: Vec<Project>,
+    /// Font chosen by the user; `None` uses the bundled font.
+    pub font: Option<CustomFont>,
 }
 
 impl Default for Library {
@@ -56,6 +61,7 @@ impl Default for Library {
             sort: SortMode::default(),
             order: vec![Entry::Demo],
             projects: Vec::new(),
+            font: None,
         }
     }
 }
@@ -284,14 +290,40 @@ pub struct Attachment {
     pub file: String,
 }
 
+/// A font file the user picked, copied into the data directory.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct CustomFont {
+    /// Family name read from the font file, used to select it.
+    pub family: String,
+    /// Path relative to the data directory.
+    pub file: String,
+}
+
+/// Reads the family name from TrueType/OpenType font data.
+#[must_use]
+pub fn font_family(data: &[u8]) -> Option<String> {
+    use ttf_parser::name_id::{FAMILY, TYPOGRAPHIC_FAMILY};
+    let face = ttf_parser::Face::parse(data, 0).ok()?;
+    let names = face.names();
+    [TYPOGRAPHIC_FAMILY, FAMILY].into_iter().find_map(|id| {
+        names
+            .into_iter()
+            .filter(|n| n.name_id == id && n.is_unicode())
+            .find_map(|n| n.to_string())
+            .filter(|name| !name.trim().is_empty())
+    })
+}
+
+fn has_extension(path: &Path, allowed: &[&str]) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| allowed.iter().any(|ok| e.eq_ignore_ascii_case(ok)))
+}
+
 /// Whether `path` has an accepted attachment extension.
 #[must_use]
 pub fn is_supported_attachment(path: &Path) -> bool {
-    path.extension().and_then(|e| e.to_str()).is_some_and(|e| {
-        ATTACHMENT_EXTENSIONS
-            .iter()
-            .any(|ok| e.eq_ignore_ascii_case(ok))
-    })
+    has_extension(path, &ATTACHMENT_EXTENSIONS)
 }
 
 /// Seconds since the Unix epoch.
@@ -488,6 +520,48 @@ impl Store {
     }
 }
 
+impl Store {
+    /// Validates a font file and copies it into the data directory.
+    ///
+    /// # Errors
+    /// Fails for non-font files or when copying fails.
+    pub fn import_font(&self, source: &Path) -> io::Result<CustomFont> {
+        let invalid = |msg: &str| io::Error::new(io::ErrorKind::InvalidInput, msg.to_owned());
+        if !has_extension(source, &FONT_EXTENSIONS) {
+            return Err(invalid("only TTF and OTF fonts are supported"));
+        }
+        let data = fs::read(source)?;
+        let family = font_family(&data).ok_or_else(|| invalid("not a readable font file"))?;
+        let name = source
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("font.ttf");
+        let relative = Path::new(FONT_DIR).join(format!("{}-{name}", now()));
+        fs::create_dir_all(self.root.join(FONT_DIR))?;
+        fs::write(self.root.join(&relative), data)?;
+        Ok(CustomFont {
+            family,
+            file: relative.to_string_lossy().replace('\\', "/"),
+        })
+    }
+
+    /// Reads a stored custom font.
+    ///
+    /// # Errors
+    /// Fails if the file is missing or unreadable.
+    pub fn read_font(&self, font: &CustomFont) -> io::Result<Vec<u8>> {
+        fs::read(self.root.join(&font.file))
+    }
+
+    /// Deletes a stored custom font; a missing file is ignored.
+    ///
+    /// # Errors
+    /// Fails if an existing file cannot be removed.
+    pub fn remove_font(&self, font: &CustomFont) -> io::Result<()> {
+        ignore_missing(fs::remove_file(self.root.join(&font.file)))
+    }
+}
+
 fn ignore_missing(result: io::Result<()>) -> io::Result<()> {
     match result {
         Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(()),
@@ -656,6 +730,25 @@ mod tests {
         let moved = store.quarantine().unwrap();
         assert!(moved.exists());
         assert_eq!(store.load().unwrap().projects.len(), 0);
+    }
+
+    #[test]
+    fn fonts_are_validated_imported_and_removed() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = Store::at(dir.path().join("data"));
+        let inter = Path::new(env!("CARGO_MANIFEST_DIR")).join("assets/fonts/Inter-Bold.ttf");
+        let font = store.import_font(&inter).unwrap();
+        assert_eq!(font.family, "Inter");
+        assert_eq!(store.read_font(&font).unwrap(), fs::read(&inter).unwrap());
+
+        let fake = dir.path().join("fake.ttf");
+        fs::write(&fake, b"not a font").unwrap();
+        assert!(store.import_font(&fake).is_err());
+        assert!(store.import_font(Path::new("x.pdf")).is_err());
+
+        store.remove_font(&font).unwrap();
+        assert!(store.read_font(&font).is_err());
+        store.remove_font(&font).unwrap();
     }
 
     #[test]

@@ -2,6 +2,7 @@
 #![cfg_attr(all(windows, not(debug_assertions)), windows_subsystem = "windows")]
 
 use chronote::app::App;
+use chronote::project::Store;
 use iced::{Size, window};
 
 /// Usage: `embryo [WEEK]`. With WEEK (1-40) the Embryo demo opens directly
@@ -10,6 +11,16 @@ fn main() -> iced::Result {
     let start = std::env::args()
         .nth(1)
         .and_then(|arg| arg.parse::<u8>().ok());
+
+    // The app-wide font is fixed at startup, so load the saved choice first.
+    let custom_font = Store::default_location().and_then(|store| {
+        let font = store.load().ok()?.font?;
+        let bytes = store.read_font(&font).ok()?;
+        Some((font.family, bytes))
+    });
+    if let Some((family, _)) = &custom_font {
+        chronote::ui::set_family(Box::leak(family.clone().into_boxed_str()));
+    }
 
     let mut app = iced::application(
         move || match start {
@@ -33,6 +44,9 @@ fn main() -> iced::Result {
     });
     for font in chronote::ui::BUNDLED_FONTS {
         app = app.font(font);
+    }
+    if let Some((_, bytes)) = custom_font {
+        app = app.font(bytes);
     }
     app.run()
 }
