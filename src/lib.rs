@@ -11,6 +11,7 @@ pub mod fetus;
 pub mod logging;
 pub mod menu;
 pub mod project;
+pub mod startup;
 pub mod theme;
 pub mod timeline;
 pub mod track;

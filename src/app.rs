@@ -91,6 +91,15 @@ impl App {
         }
     }
 
+    /// Shows `notice` on the menu (e.g. that software rendering is in use).
+    #[must_use]
+    pub fn with_notice(mut self, notice: Option<&str>) -> Self {
+        if let Some(notice) = notice {
+            self.notice = Some(notice.to_owned());
+        }
+        self
+    }
+
     /// Opens straight into the demo at `week`.
     #[must_use]
     pub fn with_demo(mut self, week: u8) -> Self {
@@ -276,10 +285,15 @@ impl App {
                     }),
                 ]);
             }
-            window::Event::RedrawRequested(_) => log::info!(
-                "first frame drawn {:.0} ms after start",
-                self.started.elapsed().as_secs_f64() * 1000.0
-            ),
+            window::Event::RedrawRequested(_) => {
+                log::info!(
+                    "first frame drawn {:.0} ms after start",
+                    self.started.elapsed().as_secs_f64() * 1000.0
+                );
+                if let Some(store) = &self.store {
+                    crate::startup::succeeded(store.root());
+                }
+            }
             window::Event::Rescaled(factor) => log::info!("scale factor changed to {factor}"),
             window::Event::Resized(size) => {
                 log::debug!("window resized to {:.0}x{:.0}", size.width, size.height);
@@ -337,6 +351,11 @@ impl App {
 
 /// Shows the native file picker, limited to supported attachment types.
 static FIRST_FRAME_SEEN: AtomicBool = AtomicBool::new(false);
+
+/// Whether the window has drawn its first frame yet.
+pub fn first_frame_drawn() -> bool {
+    FIRST_FRAME_SEEN.load(Ordering::Relaxed)
+}
 
 /// Forwards window events for logging; only the first redraw is kept so
 /// the app does not wake up on every frame.
