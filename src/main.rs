@@ -55,6 +55,11 @@ fn main() -> iced::Result {
         chronote::ui::set_family(Box::leak(family.clone().into_boxed_str()));
     }
 
+    let icon = chronote::ui::window_icon();
+    if icon.is_none() {
+        log::warn!("could not decode the window icon");
+    }
+
     let mut app = iced::application(
         move || match start {
             Some(week) => App::new().with_demo(week),
@@ -73,6 +78,7 @@ fn main() -> iced::Result {
     .window(window::Settings {
         size: Size::new(1320.0, 840.0),
         min_size: Some(Size::new(1000.0, 680.0)),
+        icon,
         ..window::Settings::default()
     });
     for font in chronote::ui::BUNDLED_FONTS {

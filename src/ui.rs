@@ -20,6 +20,23 @@ pub const BUNDLED_FONTS: [&[u8]; 3] = [
     include_bytes!("../assets/fonts/Inter-Bold.ttf"),
 ];
 
+/// App icon (256×256 PNG), also embedded in the Windows executable.
+pub const ICON_PNG: &[u8] = include_bytes!("../assets/icon/chronote-256.png");
+
+/// Decodes [`ICON_PNG`] into a window icon.
+pub fn window_icon() -> Option<iced::window::Icon> {
+    let mut reader = png::Decoder::new(std::io::Cursor::new(ICON_PNG))
+        .read_info()
+        .ok()?;
+    let mut buffer = vec![0; reader.output_buffer_size()?];
+    let info = reader.next_frame(&mut buffer).ok()?;
+    if info.color_type != png::ColorType::Rgba || info.bit_depth != png::BitDepth::Eight {
+        return None;
+    }
+    buffer.truncate(info.buffer_size());
+    iced::window::icon::from_rgba(buffer, info.width, info.height).ok()
+}
+
 static FAMILY: OnceLock<&'static str> = OnceLock::new();
 
 /// Chooses the font family for the whole app. Only the first call counts,
@@ -231,5 +248,15 @@ pub fn editor_style(_: &Theme, status: text_editor::Status) -> text_editor::Styl
         placeholder: fade(theme::MUTED, 0.7),
         value: theme::TEXT,
         selection: fade(theme::ACCENT, 0.35),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn icon_decodes() {
+        assert!(window_icon().is_some());
     }
 }
